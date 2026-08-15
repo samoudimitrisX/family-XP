@@ -34,8 +34,8 @@
         .header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 8px 30px;
-            box-shadow: none;
+            padding: 12px 30px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
             position: sticky;
             top: 0;
             z-index: 100;
@@ -45,50 +45,45 @@
             max-width: 1600px;
             margin: 0 auto;
             display: flex;
-            justify-content: flex-start;
+            justify-content: space-between;
             align-items: center;
             flex-wrap: nowrap;
-            gap: 4px;
+            gap: 16px;
         }
 
         h1 {
-            font-size: 14px;
-            font-weight: 500;
-            letter-spacing: 0;
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
             margin: 0;
-            margin-right: 16px;
             white-space: nowrap;
         }
 
         .header-buttons {
             display: flex;
-            gap: 0;
+            gap: 8px;
             flex-wrap: wrap;
             align-items: center;
+            justify-content: flex-end;
         }
 
         .header-btn {
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.15);
+            border: none;
             color: white;
-            padding: 8px 16px;
-            border-radius: 0;
-            border-right: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 7px 14px;
+            border-radius: 6px;
             cursor: pointer;
-            font-weight: 500;
+            font-weight: 600;
             font-size: 12px;
             transition: all 0.2s;
-            backdrop-filter: none;
-        }
-
-        .header-btn:last-child {
-            border-right: none;
+            white-space: nowrap;
+            width: auto;
+            margin-bottom: 0;
         }
 
         .header-btn:hover {
-            background: rgba(255, 255, 255, 0.2);
-            transform: none;
-            box-shadow: none;
+            background: rgba(255, 255, 255, 0.3);
         }
 
         .main-content {
@@ -764,45 +759,35 @@
 
         @media (max-width: 768px) {
             .header {
-                padding: 10px 12px;
+                padding: 12px 14px;
             }
 
             .header-content {
-                gap: 4px;
-                flex-wrap: wrap;
+                flex-direction: column;
+                align-items: stretch;
+                gap: 10px;
             }
 
             h1 {
-                font-size: 14px;
-                margin-right: 0;
-                flex: 0 0 100%;
-                margin-bottom: 8px;
+                font-size: 17px;
+                text-align: center;
             }
 
             .header-buttons {
-                gap: 4px;
-                flex: 1 1 100%;
-                width: 100%;
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 8px;
             }
 
             .header-btn {
-                padding: 10px 12px;
+                flex: 0 0 auto;
+                width: auto;
+                margin-bottom: 0;
+                padding: 8px 16px;
                 font-size: 12px;
-                flex: 1 1 calc(50% - 2px);
-                text-align: center;
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                border-right: none;
-                border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-            }
-
-            .header-btn:nth-child(odd) {
-                border-right: 1px solid rgba(255, 255, 255, 0.2);
-            }
-
-            .header-btn:nth-last-child(-n+2) {
-                border-bottom: none;
+                border-radius: 20px;
+                background: rgba(255, 255, 255, 0.2);
             }
 
             .person-badges {
@@ -824,18 +809,16 @@
 
         @media (max-width: 480px) {
             .header {
-                padding: 8px 8px;
+                padding: 10px 12px;
             }
 
             h1 {
-                font-size: 13px;
-                margin-bottom: 8px;
+                font-size: 16px;
             }
 
             .header-btn {
-                padding: 12px 10px;
+                padding: 7px 13px;
                 font-size: 11px;
-                flex: 1 1 calc(50% - 2px);
             }
 
             .main-content {
@@ -929,9 +912,20 @@
             const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().split('T')[0].substring(0, 7));
             const [analyticsTab, setAnalyticsTab] = useState('trends');
             const [isExpense, setIsExpense] = useState(true);
+            const [dropboxToken, setDropboxToken] = useState(null);
+            const [syncStatus, setSyncStatus] = useState('idle'); // idle | syncing | synced | error | offline
+            const [lastSync, setLastSync] = useState(null);
+            const [dataLoaded, setDataLoaded] = useState(false);
             const fileInputRef = useRef(null);
             const chartRefs = useRef({});
             const chartInstances = useRef({});
+            const syncTimer = useRef(null);
+            const isRemoteLoad = useRef(false);
+
+            // ===== DROPBOX CONFIG =====
+            const DROPBOX_APP_KEY = 'b0v5yt0ip5hrp8d';
+            const DROPBOX_REDIRECT = window.location.origin + window.location.pathname;
+            const DROPBOX_FILE = '/family_finances.json';
 
             useEffect(() => {
                 const saved = localStorage.getItem('family_finances_ultimate');
@@ -941,10 +935,220 @@
                     setIncomes(data.incomes || []);
                     setBudgets(data.budgets || {});
                 }
+                setDataLoaded(true);
             }, []);
+
+            // ===== DROPBOX PKCE HELPERS =====
+            const b64url = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf)))
+                .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+            const sha256 = async (str) => {
+                const data = new TextEncoder().encode(str);
+                return await crypto.subtle.digest('SHA-256', data);
+            };
+
+            const randomString = (len = 64) => {
+                const arr = new Uint8Array(len);
+                crypto.getRandomValues(arr);
+                return b64url(arr.buffer).substring(0, len);
+            };
+
+            const connectDropbox = async () => {
+                const verifier = randomString(64);
+                localStorage.setItem('dbx_verifier', verifier);
+                const challenge = b64url(await sha256(verifier));
+                const url = 'https://www.dropbox.com/oauth2/authorize'
+                    + '?client_id=' + encodeURIComponent(DROPBOX_APP_KEY)
+                    + '&response_type=code'
+                    + '&code_challenge=' + challenge
+                    + '&code_challenge_method=S256'
+                    + '&token_access_type=offline'
+                    + '&redirect_uri=' + encodeURIComponent(DROPBOX_REDIRECT);
+                window.location.href = url;
+            };
+
+            const exchangeCodeForToken = async (code) => {
+                const verifier = localStorage.getItem('dbx_verifier');
+                const body = new URLSearchParams({
+                    code,
+                    grant_type: 'authorization_code',
+                    client_id: DROPBOX_APP_KEY,
+                    code_verifier: verifier || '',
+                    redirect_uri: DROPBOX_REDIRECT
+                });
+                const res = await fetch('https://api.dropboxapi.com/oauth2/token', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body
+                });
+                if (!res.ok) throw new Error('Token exchange failed');
+                const data = await res.json();
+                if (data.access_token) {
+                    setDropboxToken(data.access_token);
+                    localStorage.setItem('dbx_token', data.access_token);
+                    if (data.refresh_token) localStorage.setItem('dbx_refresh', data.refresh_token);
+                }
+                return data.access_token;
+            };
+
+            const refreshDropboxToken = async () => {
+                const refresh = localStorage.getItem('dbx_refresh');
+                if (!refresh) return null;
+                const body = new URLSearchParams({
+                    grant_type: 'refresh_token',
+                    refresh_token: refresh,
+                    client_id: DROPBOX_APP_KEY
+                });
+                const res = await fetch('https://api.dropboxapi.com/oauth2/token', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body
+                });
+                if (!res.ok) return null;
+                const data = await res.json();
+                if (data.access_token) {
+                    setDropboxToken(data.access_token);
+                    localStorage.setItem('dbx_token', data.access_token);
+                    return data.access_token;
+                }
+                return null;
+            };
+
+            const disconnectDropbox = () => {
+                setDropboxToken(null);
+                setSyncStatus('idle');
+                localStorage.removeItem('dbx_token');
+                localStorage.removeItem('dbx_refresh');
+                setMessage({ type: 'success', text: 'Αποσυνδέθηκε από Dropbox' });
+                setTimeout(() => setMessage(''), 2500);
+            };
+
+            // Upload current data to Dropbox
+            const uploadToDropbox = async (token, payload) => {
+                const res = await fetch('https://content.dropboxapi.com/2/files/upload', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + token,
+                        'Dropbox-API-Arg': JSON.stringify({ path: DROPBOX_FILE, mode: 'overwrite', mute: true }),
+                        'Content-Type': 'application/octet-stream'
+                    },
+                    body: JSON.stringify(payload)
+                });
+                if (res.status === 401) throw new Error('unauthorized');
+                if (!res.ok) throw new Error('upload failed');
+                return true;
+            };
+
+            // Download data from Dropbox (returns null if file not found yet)
+            const downloadFromDropbox = async (token) => {
+                const res = await fetch('https://content.dropboxapi.com/2/files/download', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + token,
+                        'Dropbox-API-Arg': JSON.stringify({ path: DROPBOX_FILE })
+                    }
+                });
+                if (res.status === 401) throw new Error('unauthorized');
+                if (res.status === 409) return null; // file not found
+                if (!res.ok) throw new Error('download failed');
+                return await res.json();
+            };
+
+            // Full sync: pull remote, merge by newest, push back
+            const syncNow = async (silent = false) => {
+                let token = dropboxToken || localStorage.getItem('dbx_token');
+                if (!token) return;
+                setSyncStatus('syncing');
+                try {
+                    let remote;
+                    try {
+                        remote = await downloadFromDropbox(token);
+                    } catch (e) {
+                        if (e.message === 'unauthorized') {
+                            token = await refreshDropboxToken();
+                            if (!token) throw new Error('reauth');
+                            remote = await downloadFromDropbox(token);
+                        } else throw e;
+                    }
+
+                    const localData = { expenses, incomes, budgets, updatedAt: Date.now() };
+
+                    if (remote && remote.updatedAt && (!localData.updatedAt || remote.updatedAt > (parseInt(localStorage.getItem('last_local_update')) || 0))) {
+                        // Remote is newer -> load it
+                        isRemoteLoad.current = true;
+                        setExpenses(remote.expenses || []);
+                        setIncomes(remote.incomes || []);
+                        setBudgets(remote.budgets || {});
+                        localStorage.setItem('last_local_update', remote.updatedAt);
+                    }
+
+                    // Push merged/current up
+                    const toUpload = remote && remote.updatedAt > (parseInt(localStorage.getItem('last_local_update')) || 0)
+                        ? remote
+                        : localData;
+                    await uploadToDropbox(token, { ...toUpload, updatedAt: Date.now() });
+                    localStorage.setItem('last_local_update', Date.now());
+
+                    setSyncStatus('synced');
+                    setLastSync(new Date());
+                    if (!silent) {
+                        setMessage({ type: 'success', text: '☁️ Συγχρονίστηκε με Dropbox!' });
+                        setTimeout(() => setMessage(''), 2500);
+                    }
+                } catch (err) {
+                    console.error('Sync error:', err);
+                    setSyncStatus('error');
+                    if (!silent) {
+                        setMessage({ type: 'error', text: 'Σφάλμα sync: ' + err.message });
+                        setTimeout(() => setMessage(''), 3000);
+                    }
+                }
+            };
+
+            // On mount: handle OAuth redirect + restore token
+            useEffect(() => {
+                const params = new URLSearchParams(window.location.search);
+                const code = params.get('code');
+                if (code) {
+                    exchangeCodeForToken(code).then((tok) => {
+                        // Clean the URL
+                        window.history.replaceState({}, document.title, DROPBOX_REDIRECT);
+                        if (tok) {
+                            setMessage({ type: 'success', text: '✅ Συνδέθηκε με Dropbox!' });
+                            setTimeout(() => setMessage(''), 2500);
+                            setTimeout(() => syncNow(true), 800);
+                        }
+                    }).catch(() => {
+                        setMessage({ type: 'error', text: 'Αποτυχία σύνδεσης Dropbox' });
+                    });
+                } else {
+                    const savedTok = localStorage.getItem('dbx_token');
+                    if (savedTok) {
+                        setDropboxToken(savedTok);
+                        setTimeout(() => syncNow(true), 800);
+                    }
+                }
+            }, []);
+
 
             useEffect(() => {
                 localStorage.setItem('family_finances_ultimate', JSON.stringify({ expenses, incomes, budgets }));
+
+                if (!dataLoaded) return;
+
+                // If this change came from a remote load, don't mark as new local change
+                if (isRemoteLoad.current) {
+                    isRemoteLoad.current = false;
+                    return;
+                }
+
+                localStorage.setItem('last_local_update', Date.now());
+
+                // Auto-sync to Dropbox (debounced 2s) if connected
+                if (dropboxToken || localStorage.getItem('dbx_token')) {
+                    if (syncTimer.current) clearTimeout(syncTimer.current);
+                    syncTimer.current = setTimeout(() => syncNow(true), 2000);
+                }
             }, [expenses, incomes, budgets]);
 
             useEffect(() => {
@@ -1540,13 +1744,21 @@
                 <div>
                     <div className="header">
                         <div className="header-content">
-                            <h1 style={{fontSize: '24px', fontWeight: '600', letterSpacing: '0.5px'}}>family expenses</h1>
+                            <h1>💰 Οικογενειακά Οικονομικά</h1>
                             <div className="header-buttons">
+                                {dropboxToken ? (
+                                    <button className="header-btn" onClick={() => syncNow(false)} title="Συγχρονισμός τώρα">
+                                        {syncStatus === 'syncing' ? '⏳ Sync...' : syncStatus === 'error' ? '⚠️ Dropbox' : '☁️ Synced'}
+                                    </button>
+                                ) : (
+                                    <button className="header-btn" onClick={connectDropbox}>☁️ Σύνδεση Dropbox</button>
+                                )}
                                 <button className="header-btn" onClick={exportToExcel}>📊 Excel</button>
                                 <button className="header-btn" onClick={exportToPDF}>📄 PDF</button>
                                 <button className="header-btn" onClick={exportData}>💾 Backup</button>
                                 <button className="header-btn" onClick={handleImportClick}>📁 Restore</button>
-                                <input ref={fileInputRef} type="file" accept=".json" onChange={importData} />
+                                {dropboxToken && <button className="header-btn" onClick={disconnectDropbox} title="Αποσύνδεση Dropbox">🔌</button>}
+                                <input ref={fileInputRef} type="file" accept=".json" onChange={importData} style={{ display: 'none' }} />
                             </div>
                         </div>
                     </div>
