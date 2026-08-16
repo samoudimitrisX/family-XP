@@ -924,7 +924,7 @@
 
             // ===== DROPBOX CONFIG =====
             const DROPBOX_APP_KEY = 'b0v5yt0ip5hrp8d';
-            const DROPBOX_REDIRECT = window.location.origin + window.location.pathname;
+            const DROPBOX_REDIRECT = 'https://samoudimitrisx.github.io/family-XP/';
             const DROPBOX_FILE = '/family_finances.json';
 
             useEffect(() => {
@@ -1060,6 +1060,7 @@
                 if (!token) return;
                 setSyncStatus('syncing');
                 try {
+                    // 1) Download whatever is on Dropbox right now
                     let remote;
                     try {
                         remote = await downloadFromDropbox(token);
@@ -1071,23 +1072,37 @@
                         } else throw e;
                     }
 
-                    const localData = { expenses, incomes, budgets, updatedAt: Date.now() };
+                    const localStamp = parseInt(localStorage.getItem('last_local_update')) || 0;
+                    const remoteStamp = (remote && remote.updatedAt) ? remote.updatedAt : 0;
 
-                    if (remote && remote.updatedAt && (!localData.updatedAt || remote.updatedAt > (parseInt(localStorage.getItem('last_local_update')) || 0))) {
-                        // Remote is newer -> load it
+                    if (remoteStamp > localStamp) {
+                        // 2a) Remote is NEWER than our local data -> adopt remote, do NOT upload
                         isRemoteLoad.current = true;
                         setExpenses(remote.expenses || []);
                         setIncomes(remote.incomes || []);
                         setBudgets(remote.budgets || {});
-                        localStorage.setItem('last_local_update', remote.updatedAt);
+                        localStorage.setItem('last_local_update', String(remoteStamp));
+                        localStorage.setItem('family_finances_ultimate', JSON.stringify({
+                            expenses: remote.expenses || [],
+                            incomes: remote.incomes || [],
+                            budgets: remote.budgets || {}
+                        }));
+                        setSyncStatus('synced');
+                        setLastSync(new Date());
+                        if (!silent) {
+                            setMessage({ type: 'success', text: '☁️ Ενημερώθηκε από Dropbox!' });
+                            setTimeout(() => setMessage(''), 2500);
+                        }
+                        return;
                     }
 
-                    // Push merged/current up
-                    const toUpload = remote && remote.updatedAt > (parseInt(localStorage.getItem('last_local_update')) || 0)
-                        ? remote
-                        : localData;
-                    await uploadToDropbox(token, { ...toUpload, updatedAt: Date.now() });
-                    localStorage.setItem('last_local_update', Date.now());
+                    // 2b) Local is newer (or equal) -> push local up, keeping our own stamp
+                    const stampToKeep = localStamp || Date.now();
+                    await uploadToDropbox(token, {
+                        expenses, incomes, budgets,
+                        updatedAt: stampToKeep
+                    });
+                    localStorage.setItem('last_local_update', String(stampToKeep));
 
                     setSyncStatus('synced');
                     setLastSync(new Date());
@@ -1142,7 +1157,7 @@
                     return;
                 }
 
-                localStorage.setItem('last_local_update', Date.now());
+                localStorage.setItem('last_local_update', String(Date.now()));
 
                 // Auto-sync to Dropbox (debounced 2s) if connected
                 if (dropboxToken || localStorage.getItem('dbx_token')) {
