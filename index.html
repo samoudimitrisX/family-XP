@@ -1075,13 +1075,24 @@
                     const localStamp = parseInt(localStorage.getItem('last_local_update')) || 0;
                     const remoteStamp = (remote && remote.updatedAt) ? remote.updatedAt : 0;
 
-                    if (remoteStamp > localStamp) {
-                        // 2a) Remote is NEWER than our local data -> adopt remote, do NOT upload
+                    const localCount = expenses.length + incomes.length;
+                    const remoteCount = remote ? ((remote.expenses || []).length + (remote.incomes || []).length) : 0;
+
+                    // SAFETY: an empty local dataset must NEVER overwrite a non-empty remote one.
+                    // If local is empty but remote has data, always adopt remote.
+                    const localIsEmpty = localCount === 0;
+                    const remoteHasData = remoteCount > 0;
+
+                    const shouldAdoptRemote =
+                        (localIsEmpty && remoteHasData) ||        // never wipe remote from an empty device
+                        (remoteStamp > localStamp && remoteCount >= localCount); // remote newer AND not smaller
+
+                    if (shouldAdoptRemote && remote) {
                         isRemoteLoad.current = true;
                         setExpenses(remote.expenses || []);
                         setIncomes(remote.incomes || []);
                         setBudgets(remote.budgets || {});
-                        localStorage.setItem('last_local_update', String(remoteStamp));
+                        localStorage.setItem('last_local_update', String(remoteStamp || Date.now()));
                         localStorage.setItem('family_finances_ultimate', JSON.stringify({
                             expenses: remote.expenses || [],
                             incomes: remote.incomes || [],
@@ -1096,7 +1107,14 @@
                         return;
                     }
 
-                    // 2b) Local is newer (or equal) -> push local up, keeping our own stamp
+                    // SAFETY: don't push an empty local over a non-empty remote (belt-and-suspenders)
+                    if (localIsEmpty && remoteHasData) {
+                        setSyncStatus('synced');
+                        setLastSync(new Date());
+                        return;
+                    }
+
+                    // Otherwise: local is the source of truth -> push it up
                     const stampToKeep = localStamp || Date.now();
                     await uploadToDropbox(token, {
                         expenses, incomes, budgets,
