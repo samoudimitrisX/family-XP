@@ -521,6 +521,214 @@
             overflow-y: auto;
         }
 
+        /* ===== QUICK ADD ===== */
+        .quick-amount {
+            width: 100%;
+            font-size: 38px;
+            font-weight: 800;
+            text-align: center;
+            padding: 14px;
+            border: 3px solid #667eea;
+            border-radius: 14px;
+            color: #1a1a2e;
+            margin-bottom: 14px;
+        }
+        .quick-amount:focus {
+            outline: none;
+            box-shadow: 0 0 0 4px rgba(102,126,234,0.15);
+        }
+        body.dark-mode .quick-amount { color: #fff; background: #2a2a3e; }
+
+        .quick-cats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+        @media (max-width: 768px) {
+            .quick-cats { grid-template-columns: repeat(3, 1fr); }
+            .quick-amount { font-size: 32px; }
+        }
+        .quick-cat {
+            background: #f5f7fa;
+            color: #333;
+            border: 2px solid #e0e0e0;
+            padding: 12px 6px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+            text-align: center;
+            position: relative;
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .quick-cat:hover { border-color: #667eea; }
+        .quick-cat.selected {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+            box-shadow: 0 4px 12px rgba(102,126,234,0.3);
+        }
+        body.dark-mode .quick-cat { background: #2a2a3e; color: #ddd; border-color: #444; }
+        .quick-cat .del-x {
+            position: absolute;
+            top: -6px; right: -6px;
+            background: #f44336;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 18px; height: 18px;
+            font-size: 11px;
+            line-height: 1;
+            cursor: pointer;
+            display: none;
+        }
+        .quick-cat.custom.manage .del-x { display: block; }
+
+        .quick-people {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+        .quick-person {
+            flex: 1;
+            min-width: 70px;
+            padding: 8px;
+            border-radius: 8px;
+            border: 2px solid #e0e0e0;
+            background: #f5f7fa;
+            color: #333;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .quick-person.selected { background: #764ba2; color: white; border-color: #764ba2; }
+        body.dark-mode .quick-person { background: #2a2a3e; color: #ddd; border-color: #444; }
+
+        .quick-submit {
+            width: 100%;
+            padding: 18px;
+            font-size: 18px;
+            font-weight: 800;
+            border-radius: 14px;
+            margin-top: 6px;
+        }
+
+        /* ===== FLOATING ACTION BUTTON ===== */
+        .fab {
+            position: fixed;
+            bottom: 28px;
+            right: 28px;
+            z-index: 1500;
+            width: 68px;
+            height: 68px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-size: 34px;
+            font-weight: 700;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 8px 28px rgba(102,126,234,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin: 0;
+            padding: 0;
+            line-height: 1;
+        }
+        .fab:hover { transform: scale(1.08); box-shadow: 0 12px 36px rgba(102,126,234,0.6); }
+        .fab:active { transform: scale(0.95); }
+
+        .fab-label {
+            position: fixed;
+            bottom: 44px;
+            right: 108px;
+            z-index: 1500;
+            background: #1a1a2e;
+            color: white;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            white-space: nowrap;
+            pointer-events: none;
+            opacity: 0.9;
+        }
+        @media (max-width: 768px) {
+            .fab { bottom: 20px; right: 20px; width: 62px; height: 62px; font-size: 30px; }
+            .fab-label { display: none; }
+        }
+
+        .fab-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.55);
+            z-index: 2000;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            padding: 0;
+        }
+        @media (min-width: 769px) {
+            .fab-overlay { align-items: center; padding: 20px; }
+        }
+
+        .fab-sheet {
+            background: white;
+            width: 100%;
+            max-width: 560px;
+            border-radius: 20px 20px 0 0;
+            padding: 24px 22px 28px;
+            box-shadow: 0 -8px 40px rgba(0,0,0,0.3);
+            max-height: 92vh;
+            overflow-y: auto;
+            animation: sheetUp 0.25s ease;
+        }
+        @media (min-width: 769px) {
+            .fab-sheet { border-radius: 20px; animation: sheetPop 0.2s ease; }
+        }
+        @keyframes sheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        @keyframes sheetPop { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        body.dark-mode .fab-sheet { background: #2a2a3e; }
+
+        .variant-switch {
+            display: flex;
+            gap: 6px;
+            background: #f0f0f0;
+            border-radius: 10px;
+            padding: 4px;
+            margin-bottom: 18px;
+        }
+        body.dark-mode .variant-switch { background: #1a1a2e; }
+        .variant-switch button {
+            flex: 1;
+            padding: 8px;
+            border: none;
+            border-radius: 8px;
+            background: none;
+            color: #666;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            margin: 0;
+            box-shadow: none;
+        }
+        .variant-switch button.active {
+            background: white;
+            color: #667eea;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+        body.dark-mode .variant-switch button.active { background: #667eea; color: white; }
+
         .category-btn {
             background: #f5f7fa;
             color: #333;
@@ -873,12 +1081,13 @@
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
-        const EXPENSE_CATEGORIES = [
-            'Σούπερμάρκετ', 'Φούρνος', 'Περιπτέρο', 'Wolt', 'Έξοδος',
-            'Ρούχα', 'Δάνειο', 'Ρεύμα', 'Νερό', 'Ίντερνετ',
-            'Σέρβις Αυτοκινήτου', 'Ρούχα - Παπούτσια', 'Ταξίδια', 'Δώρα', 'Κινητό',
-            'Health Care', 'Μάνα', 'Πατέρας', 'Προσωπικά', 'Unplanned',
-            'Βενζίνη', 'Γραφείο', 'Διάφορα', 'Φάρμακα', 'Netflix', 'Ίντερνετ', 'Επιδιόρθωση Σπιτιού', 'Φόροι Σπιτιού'
+        const DEFAULT_EXPENSE_CATEGORIES = [
+            'Σούπερμάρκετ', 'Φούρνος', 'Περίπτερο', 'Wolt', 'Έξοδος',
+            'Βενζίνη', 'Βενζίνη γραφείο', 'Ρούχα', 'Μάνα', 'Παπούτσια',
+            'Δάνειο', 'Ρεύμα', 'Νερό', 'Κινητό', 'Ίντερνετ',
+            'Φάρμακα', 'Netflix', 'Σέρβις Αυτοκινήτου', 'Ταξίδια', 'Δώρα',
+            'Health Care', 'Πατέρας', 'Προσωπικά', 'Unplanned', 'Γραφείο',
+            'Διάφορα', 'Επιδιόρθωση Σπιτιού', 'Φόροι Σπιτιού'
         ];
 
         const INCOME_CATEGORIES = ['Μισθός', 'Δεύτερη Δουλειά', 'Επένδυση', 'Δώρο', 'Άλλο'];
@@ -902,8 +1111,19 @@
             const [category, setCategory] = useState('Σούπερμάρκετ');
             const [incomeCategory, setIncomeCategory] = useState('Μισθός');
             const [customCategory, setCustomCategory] = useState('');
-            const [person, setPerson] = useState('dimitris');
+            const [customCategories, setCustomCategories] = useState([]);
+            const [newCatInput, setNewCatInput] = useState('');
+            const [manageCats, setManageCats] = useState(false);
+            const [showAdvanced, setShowAdvanced] = useState(false);
+            const [fabOpen, setFabOpen] = useState(false);
+            const [fabVariant, setFabVariant] = useState('B'); // locked to B: always choose who to charge
+            const [fabAdvanced, setFabAdvanced] = useState(false);
+            const [person, setPerson] = useState('family');
             const [note, setNote] = useState('');
+            const [receiptData, setReceiptData] = useState(null); // base64 preview before save
+            const [receiptUploading, setReceiptUploading] = useState(false);
+            const [viewingReceipt, setViewingReceipt] = useState(null); // {loading, url} for modal
+            const receiptInputRef = useRef(null);
             const [tags, setTags] = useState([]);
             const [tagInput, setTagInput] = useState('');
             const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -927,6 +1147,36 @@
             const DROPBOX_REDIRECT = 'https://samoudimitrisx.github.io/family-XP/';
             const DROPBOX_FILE = '/family_finances.json';
 
+            // Filename timestamp: YYYY-MM-DD_HH-MM  (e.g. 2026-08-15_22-00) for easy follow-up
+            const fileStamp = () => {
+                const d = new Date();
+                const p = (n) => String(n).padStart(2, '0');
+                return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}_${p(d.getHours())}-${p(d.getMinutes())}`;
+            };
+
+            // Merged list: default categories + user's own custom ones (deduped)
+            const EXPENSE_CATEGORIES = [...DEFAULT_EXPENSE_CATEGORIES, ...customCategories.filter(c => !DEFAULT_EXPENSE_CATEGORIES.includes(c))];
+
+            const addCustomCategory = () => {
+                const name = newCatInput.trim();
+                if (!name) return;
+                if (EXPENSE_CATEGORIES.includes(name)) {
+                    setMessage({ type: 'error', text: 'Υπάρχει ήδη αυτή η κατηγορία' });
+                    setTimeout(() => setMessage(''), 2000);
+                    return;
+                }
+                setCustomCategories([...customCategories, name]);
+                setCategory(name);
+                setNewCatInput('');
+                setMessage({ type: 'success', text: 'Κατηγορία «' + name + '» προστέθηκε!' });
+                setTimeout(() => setMessage(''), 2000);
+            };
+
+            const deleteCustomCategory = (name) => {
+                setCustomCategories(customCategories.filter(c => c !== name));
+                if (category === name) setCategory(DEFAULT_EXPENSE_CATEGORIES[0]);
+            };
+
             useEffect(() => {
                 const saved = localStorage.getItem('family_finances_ultimate');
                 if (saved) {
@@ -934,6 +1184,7 @@
                     setExpenses(data.expenses || []);
                     setIncomes(data.incomes || []);
                     setBudgets(data.budgets || {});
+                    setCustomCategories(data.customCategories || []);
                 }
                 setDataLoaded(true);
             }, []);
@@ -1054,6 +1305,141 @@
                 return await res.json();
             };
 
+            // Upload a timestamped backup copy into /backups/ (keeps history)
+            const uploadTimestampedBackup = async (token) => {
+                const path = '/backups/backup_' + fileStamp() + '.json';
+                const payload = { expenses, incomes, budgets, customCategories, backupAt: new Date().toISOString() };
+                const res = await fetch('https://content.dropboxapi.com/2/files/upload', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + token,
+                        'Dropbox-API-Arg': JSON.stringify({ path, mode: 'add', autorename: true, mute: true }),
+                        'Content-Type': 'application/octet-stream'
+                    },
+                    body: JSON.stringify(payload)
+                });
+                if (res.status === 401) throw new Error('unauthorized');
+                if (!res.ok) throw new Error('backup failed');
+                return true;
+            };
+
+            // ===== RECEIPTS =====
+            // Compress an image file to ~max 1200px wide JPEG (~good enough for a receipt)
+            const compressImage = (file) => new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const maxW = 1200;
+                        const scale = Math.min(1, maxW / img.width);
+                        const canvas = document.createElement('canvas');
+                        canvas.width = Math.round(img.width * scale);
+                        canvas.height = Math.round(img.height * scale);
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        // 0.7 quality JPEG keeps receipts readable but small
+                        resolve(canvas.toDataURL('image/jpeg', 0.7));
+                    };
+                    img.onerror = reject;
+                    img.src = e.target.result;
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+
+            const handleReceiptSelect = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                if (!file.type.startsWith('image/')) {
+                    setMessage({ type: 'error', text: 'Επιλέξτε εικόνα' });
+                    setTimeout(() => setMessage(''), 2000);
+                    return;
+                }
+                try {
+                    const compressed = await compressImage(file);
+                    setReceiptData(compressed); // preview; uploaded on save
+                } catch (err) {
+                    setMessage({ type: 'error', text: 'Σφάλμα εικόνας' });
+                    setTimeout(() => setMessage(''), 2000);
+                }
+                e.target.value = '';
+            };
+
+            // Convert a dataURL to binary and upload to Dropbox /receipts/, returns the path
+            const uploadReceipt = async (token, dataUrl, id) => {
+                const base64 = dataUrl.split(',')[1];
+                const binary = atob(base64);
+                const bytes = new Uint8Array(binary.length);
+                for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+                const path = '/receipts/receipt_' + id + '.jpg';
+                const res = await fetch('https://content.dropboxapi.com/2/files/upload', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + token,
+                        'Dropbox-API-Arg': JSON.stringify({ path, mode: 'overwrite', mute: true }),
+                        'Content-Type': 'application/octet-stream'
+                    },
+                    body: bytes
+                });
+                if (!res.ok) throw new Error('receipt upload failed');
+                return path;
+            };
+
+            // Download a receipt from Dropbox and show it
+            const viewReceipt = async (receiptPath) => {
+                const token = dropboxToken || localStorage.getItem('dbx_token');
+                if (!token) {
+                    setMessage({ type: 'error', text: 'Σύνδεση Dropbox για προβολή' });
+                    setTimeout(() => setMessage(''), 2500);
+                    return;
+                }
+                setViewingReceipt({ loading: true, url: null });
+                try {
+                    const res = await fetch('https://content.dropboxapi.com/2/files/download', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': 'Bearer ' + token,
+                            'Dropbox-API-Arg': JSON.stringify({ path: receiptPath })
+                        }
+                    });
+                    if (!res.ok) throw new Error('not found');
+                    const blob = await res.blob();
+                    setViewingReceipt({ loading: false, url: URL.createObjectURL(blob) });
+                } catch (e) {
+                    setViewingReceipt(null);
+                    setMessage({ type: 'error', text: 'Η απόδειξη δεν βρέθηκε' });
+                    setTimeout(() => setMessage(''), 2500);
+                }
+            };
+
+            // Weekly auto-backup: fires on first open AFTER Friday 22:00, once per week
+            const checkWeeklyBackup = async () => {
+                const token = dropboxToken || localStorage.getItem('dbx_token');
+                if (!token) return; // needs Dropbox connected
+                if ((expenses.length + incomes.length) === 0) return; // nothing to back up
+
+                const now = new Date();
+                // Find the most recent Friday 22:00 that has already passed
+                const target = new Date(now);
+                const day = now.getDay(); // 0=Sun ... 5=Fri
+                let daysSinceFri = (day - 5 + 7) % 7;
+                target.setDate(now.getDate() - daysSinceFri);
+                target.setHours(22, 0, 0, 0);
+                if (target > now) target.setDate(target.getDate() - 7); // last Friday 22:00 in the past
+
+                const lastBackup = parseInt(localStorage.getItem('last_weekly_backup')) || 0;
+                if (lastBackup >= target.getTime()) return; // already backed up for this window
+
+                try {
+                    await uploadTimestampedBackup(token);
+                    localStorage.setItem('last_weekly_backup', String(Date.now()));
+                    setMessage({ type: 'success', text: '🗂️ Εβδομαδιαίο backup αποθηκεύτηκε στο Dropbox!' });
+                    setTimeout(() => setMessage(''), 3500);
+                } catch (e) {
+                    console.error('Weekly backup failed:', e);
+                }
+            };
+
             // Full sync: pull remote, merge by newest, push back
             const syncNow = async (silent = false) => {
                 let token = dropboxToken || localStorage.getItem('dbx_token');
@@ -1092,11 +1478,13 @@
                         setExpenses(remote.expenses || []);
                         setIncomes(remote.incomes || []);
                         setBudgets(remote.budgets || {});
+                        if (remote.customCategories) setCustomCategories(remote.customCategories);
                         localStorage.setItem('last_local_update', String(remoteStamp || Date.now()));
                         localStorage.setItem('family_finances_ultimate', JSON.stringify({
                             expenses: remote.expenses || [],
                             incomes: remote.incomes || [],
-                            budgets: remote.budgets || {}
+                            budgets: remote.budgets || {},
+                            customCategories: remote.customCategories || []
                         }));
                         setSyncStatus('synced');
                         setLastSync(new Date());
@@ -1117,7 +1505,7 @@
                     // Otherwise: local is the source of truth -> push it up
                     const stampToKeep = localStamp || Date.now();
                     await uploadToDropbox(token, {
-                        expenses, incomes, budgets,
+                        expenses, incomes, budgets, customCategories,
                         updatedAt: stampToKeep
                     });
                     localStorage.setItem('last_local_update', String(stampToKeep));
@@ -1165,7 +1553,7 @@
 
 
             useEffect(() => {
-                localStorage.setItem('family_finances_ultimate', JSON.stringify({ expenses, incomes, budgets }));
+                localStorage.setItem('family_finances_ultimate', JSON.stringify({ expenses, incomes, budgets, customCategories }));
 
                 if (!dataLoaded) return;
 
@@ -1182,7 +1570,15 @@
                     if (syncTimer.current) clearTimeout(syncTimer.current);
                     syncTimer.current = setTimeout(() => syncNow(true), 2000);
                 }
-            }, [expenses, incomes, budgets]);
+            }, [expenses, incomes, budgets, customCategories]);
+
+            // Weekly auto-backup check: runs once data is loaded and Dropbox is connected
+            useEffect(() => {
+                if (!dataLoaded) return;
+                if (!(dropboxToken || localStorage.getItem('dbx_token'))) return;
+                const t = setTimeout(() => checkWeeklyBackup(), 2500);
+                return () => clearTimeout(t);
+            }, [dataLoaded, dropboxToken, expenses, incomes]);
 
             useEffect(() => {
                 if (activeTab === 'dashboard') {
@@ -1196,35 +1592,59 @@
                 }
             }, [activeTab, expenses, incomes, analyticsTab, selectedMonth]);
 
-            const addTransaction = () => {
+            const addTransaction = async () => {
                 if (!amount || isNaN(amount)) {
                     setMessage({ type: 'error', text: 'Εισάγετε έγκυρο ποσό' });
                     return;
                 }
 
+                const txId = Date.now();
+                let receiptPath = null;
+
+                // Upload receipt first (if attached and Dropbox connected)
+                if (receiptData) {
+                    const token = dropboxToken || localStorage.getItem('dbx_token');
+                    if (token) {
+                        setReceiptUploading(true);
+                        try {
+                            receiptPath = await uploadReceipt(token, receiptData, txId);
+                        } catch (e) {
+                            console.error('Receipt upload failed:', e);
+                            setMessage({ type: 'error', text: 'Η απόδειξη δεν ανέβηκε (το έξοδο αποθηκεύτηκε)' });
+                            setTimeout(() => setMessage(''), 3000);
+                        }
+                        setReceiptUploading(false);
+                    } else {
+                        setMessage({ type: 'error', text: 'Σύνδεση Dropbox για αποθήκευση απόδειξης' });
+                        setTimeout(() => setMessage(''), 3000);
+                    }
+                }
+
                 if (isExpense) {
                     const finalCategory = customCategory.trim() || category;
                     const newExpense = {
-                        id: Date.now(),
+                        id: txId,
                         amount: parseFloat(amount),
                         category: finalCategory,
                         person,
                         note,
                         tags,
                         date,
-                        type: 'expense'
+                        type: 'expense',
+                        receipt: receiptPath
                     };
                     setExpenses([newExpense, ...expenses]);
                 } else {
                     const newIncome = {
-                        id: Date.now(),
+                        id: txId,
                         amount: parseFloat(amount),
                         category: incomeCategory,
                         person,
                         note,
                         tags,
                         date,
-                        type: 'income'
+                        type: 'income',
+                        receipt: receiptPath
                     };
                     setIncomes([newIncome, ...incomes]);
                 }
@@ -1233,9 +1653,11 @@
                 setCustomCategory('');
                 setNote('');
                 setTags([]);
+                setPerson('family');
+                setReceiptData(null);
                 setDate(new Date().toISOString().split('T')[0]);
                 const savedAmount = parseFloat(amount).toFixed(2);
-                setMessage({ type: 'success', text: isExpense ? `Προστέθηκε έξοδο €${savedAmount}!` : `Προστέθηκε έσοδο €${savedAmount}!` });
+                setMessage({ type: 'success', text: isExpense ? `Προστέθηκε έξοδο €${savedAmount}${receiptPath ? ' 📎' : ''}!` : `Προστέθηκε έσοδο €${savedAmount}!` });
                 setTimeout(() => setMessage(''), 3000);
             };
 
@@ -1244,6 +1666,35 @@
                     setTags([...tags, tagInput.trim()]);
                     setTagInput('');
                 }
+            };
+
+            const openFab = () => {
+                // Fresh quick-add: expense mode, today, default person per variant
+                setIsExpense(true);
+                setAmount('');
+                setNote('');
+                setCustomCategory('');
+                setTags([]);
+                setReceiptData(null);
+                setDate(new Date().toISOString().split('T')[0]);
+                setPerson(fabVariant === 'A' ? 'family' : '');
+                setFabAdvanced(false);
+                setFabOpen(true);
+            };
+
+            const submitFab = async () => {
+                if (!amount || isNaN(amount)) {
+                    setMessage({ type: 'error', text: 'Εισάγετε ποσό' });
+                    setTimeout(() => setMessage(''), 2000);
+                    return;
+                }
+                if (fabVariant === 'B' && !person) {
+                    setMessage({ type: 'error', text: 'Διάλεξε ποιον χρεώνεις' });
+                    setTimeout(() => setMessage(''), 2000);
+                    return;
+                }
+                await addTransaction();
+                setFabOpen(false);
             };
 
             const removeTag = (tag) => {
@@ -1600,7 +2051,7 @@
                     const ws3 = XLSX.utils.aoa_to_sheet(txRows);
                     XLSX.utils.book_append_sheet(wb, ws3, 'Συναλλαγές');
 
-                    XLSX.writeFile(wb, `Οικονομικά_${new Date().toISOString().split('T')[0]}.xlsx`);
+                    XLSX.writeFile(wb, `Οικονομικά_${fileStamp()}.xlsx`);
                     setMessage({ type: 'success', text: '✅ Το Excel κατέβηκε!' });
                     setTimeout(() => setMessage(''), 3000);
                 } catch (error) {
@@ -1713,7 +2164,7 @@
                         });
                     }
 
-                    doc.save(`Finances_${new Date().toISOString().split('T')[0]}.pdf`);
+                    doc.save(`Finances_${fileStamp()}.pdf`);
                     setMessage({ type: 'success', text: '✅ Το PDF κατέβηκε!' });
                     setTimeout(() => setMessage(''), 3000);
                 } catch (error) {
@@ -1723,13 +2174,13 @@
             };
 
             const exportData = () => {
-                const data = { expenses, incomes, budgets, exportDate: new Date().toISOString() };
+                const data = { expenses, incomes, budgets, customCategories, exportDate: new Date().toISOString() };
                 const json = JSON.stringify(data, null, 2);
                 const blob = new Blob([json], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `οικονομικά_${new Date().toISOString().split('T')[0]}.json`;
+                a.download = `Backup_${fileStamp()}.json`;
                 a.click();
                 setMessage({ type: 'success', text: 'Δεδομένα εξαγόμενα!' });
             };
@@ -1854,7 +2305,6 @@
 
                         <div className="tabs">
                             <button className={`tab-btn ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>📊 Ταμπλό</button>
-                            <button className={`tab-btn ${activeTab === 'add' ? 'active' : ''}`} onClick={() => setActiveTab('add')}>➕ Προσθήκη</button>
                             <button className={`tab-btn ${activeTab === 'budgets' ? 'active' : ''}`} onClick={() => setActiveTab('budgets')}>💼 Προϋπολογισμός</button>
                             <button className={`tab-btn ${activeTab === 'analytics' ? 'active' : ''}`} onClick={() => setActiveTab('analytics')}>📈 Προχ. Ανάλυση</button>
                             <button className={`tab-btn ${activeTab === 'daily' ? 'active' : ''}`} onClick={() => setActiveTab('daily')}>📅 Ημερήσια</button>
@@ -1959,7 +2409,7 @@
 
                         {activeTab === 'add' && (
                             <div className="card">
-                                <div style={{ display: 'flex', gap: '24px', marginBottom: '28px', flexWrap: 'wrap' }}>
+                                <div style={{ display: 'flex', gap: '24px', marginBottom: '18px', flexWrap: 'wrap' }}>
                                     <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontWeight: 600 }}>
                                         <input type="radio" checked={isExpense} onChange={() => setIsExpense(true)} />
                                         ❌ Έξοδο
@@ -1970,84 +2420,109 @@
                                     </label>
                                 </div>
 
-                                <h2>{isExpense ? '➕ Προσθήκη Εξόδου' : '💰 Προσθήκη Εισοδήματος'}</h2>
-
                                 {isExpense && (
                                     <>
-                                        <h3>Ποιος πληρώνει;</h3>
-                                        <div className="person-badges">
-                                            {PEOPLE.map(p => (
-                                                <button key={p.id} className={`badge ${p.color} ${person === p.id ? 'selected' : ''}`} onClick={() => setPerson(p.id)} style={{ margin: 0, marginBottom: '12px' }}>
-                                                    {p.name}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </>
-                                )}
+                                        {/* 1. AMOUNT - big, first */}
+                                        <input
+                                            type="number"
+                                            inputMode="decimal"
+                                            className="quick-amount"
+                                            placeholder="€ 0.00"
+                                            value={amount}
+                                            onChange={e => setAmount(e.target.value)}
+                                            step="0.01"
+                                            autoFocus
+                                        />
 
-                                <div className="form-group">
-                                    <input type="number" placeholder="Ποσό (€)" value={amount} onChange={e => setAmount(e.target.value)} step="0.01" />
-                                    <input type="date" value={date} onChange={e => setDate(e.target.value)} />
-                                </div>
-
-                                {isExpense && (
-                                    <>
-                                        <h3>Κατηγορία Εξόδου</h3>
-                                        <div className="categories-grid">
-                                            {EXPENSE_CATEGORIES.map(cat => (
-                                                <button key={cat} className={`category-btn ${category === cat && !customCategory ? 'selected' : ''}`} onClick={() => { setCategory(cat); setCustomCategory(''); }}>
-                                                    {cat}
-                                                </button>
-                                            ))}
+                                        {/* 2. CATEGORY - compact grid */}
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                                            <h3 style={{ margin: 0 }}>Κατηγορία</h3>
+                                            <button onClick={() => setManageCats(!manageCats)} style={{ width: 'auto', padding: '4px 12px', fontSize: '11px', background: manageCats ? '#f44336' : '#999', marginBottom: 0 }}>
+                                                {manageCats ? '✓ Τέλος' : '✏️ Διαχείριση'}
+                                            </button>
                                         </div>
-                                        <input type="text" placeholder="Ή δική σας κατηγορία" value={customCategory} onChange={e => setCustomCategory(e.target.value)} />
+                                        <div className="quick-cats">
+                                            {EXPENSE_CATEGORIES.map(cat => {
+                                                const isCustom = customCategories.includes(cat);
+                                                return (
+                                                    <button
+                                                        key={cat}
+                                                        className={`quick-cat ${isCustom ? 'custom' : ''} ${manageCats ? 'manage' : ''} ${category === cat && !customCategory ? 'selected' : ''}`}
+                                                        onClick={() => { if (!manageCats) { setCategory(cat); setCustomCategory(''); } }}
+                                                    >
+                                                        {cat}
+                                                        {isCustom && manageCats && (
+                                                            <span className="del-x" onClick={(e) => { e.stopPropagation(); deleteCustomCategory(cat); }}>✕</span>
+                                                        )}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+
+                                        {/* Add new category inline */}
+                                        <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+                                            <input type="text" placeholder="➕ Νέα κατηγορία..." value={newCatInput} onChange={e => setNewCatInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') addCustomCategory(); }} style={{ flex: 1, marginBottom: 0 }} />
+                                            <button onClick={addCustomCategory} style={{ width: 'auto', padding: '0 20px', marginBottom: 0 }}>Προσθήκη</button>
+                                        </div>
+
+                                        {/* 3. SUBMIT - big */}
+                                        <button onClick={addTransaction} className="quick-submit">✓ Καταχώρηση Εξόδου</button>
+
+                                        {/* Advanced options - collapsed by default */}
+                                        <div style={{ textAlign: 'center', marginTop: '14px' }}>
+                                            <button onClick={() => setShowAdvanced(!showAdvanced)} style={{ width: 'auto', background: 'none', color: '#667eea', boxShadow: 'none', fontSize: '13px', marginBottom: 0 }}>
+                                                {showAdvanced ? '▲ Λιγότερα' : '▼ Περισσότερα (ημ/νία, χρέωση, σημείωση)'}
+                                            </button>
+                                        </div>
+
+                                        {showAdvanced && (
+                                            <div style={{ marginTop: '14px', paddingTop: '14px', borderTop: '1px solid #eee' }}>
+                                                <h3>📅 Ημερομηνία</h3>
+                                                <input type="date" value={date} onChange={e => setDate(e.target.value)} style={{ marginBottom: '16px' }} />
+
+                                                <h3>👤 Χρεώνω</h3>
+                                                <div className="quick-people">
+                                                    {PEOPLE.map(p => (
+                                                        <button key={p.id} className={`quick-person ${person === p.id ? 'selected' : ''}`} onClick={() => setPerson(p.id)}>
+                                                            {p.name}
+                                                        </button>
+                                                    ))}
+                                                </div>
+
+                                                <h3>📝 Σημείωση</h3>
+                                                <textarea placeholder="Σημείωση (προαιρετικό)" value={note} onChange={e => setNote(e.target.value)}></textarea>
+                                            </div>
+                                        )}
                                     </>
                                 )}
 
                                 {!isExpense && (
                                     <>
+                                        <h2>💰 Προσθήκη Εισοδήματος</h2>
+                                        <input
+                                            type="number"
+                                            inputMode="decimal"
+                                            className="quick-amount"
+                                            placeholder="€ 0.00"
+                                            value={amount}
+                                            onChange={e => setAmount(e.target.value)}
+                                            step="0.01"
+                                        />
                                         <h3>Κατηγορία Εισοδήματος</h3>
-                                        <div className="categories-grid" style={{ maxHeight: '150px' }}>
+                                        <div className="quick-cats">
                                             {INCOME_CATEGORIES.map(cat => (
-                                                <button key={cat} className={`category-btn ${incomeCategory === cat ? 'selected' : ''}`} onClick={() => setIncomeCategory(cat)}>
+                                                <button key={cat} className={`quick-cat ${incomeCategory === cat ? 'selected' : ''}`} onClick={() => setIncomeCategory(cat)}>
                                                     {cat}
                                                 </button>
                                             ))}
                                         </div>
+                                        <div style={{ marginBottom: '14px' }}>
+                                            <input type="date" value={date} onChange={e => setDate(e.target.value)} style={{ marginBottom: '10px' }} />
+                                            <textarea placeholder="Σημείωση (προαιρετικό)" value={note} onChange={e => setNote(e.target.value)}></textarea>
+                                        </div>
+                                        <button onClick={addTransaction} className="quick-submit">✓ Καταχώρηση Εισοδήματος</button>
                                     </>
                                 )}
-
-                                <div className="form-group full">
-                                    <textarea placeholder="Σημείωση (προαιρετικό)" value={note} onChange={e => setNote(e.target.value)}></textarea>
-                                </div>
-
-                                <h3>🏷️ Ετικέτες</h3>
-                                <div style={{ marginBottom: '16px' }}>
-                                    {SUGGESTED_TAGS.map(tag => (
-                                        <button key={tag} className={`tag-btn ${tags.includes(tag) ? 'selected' : ''}`} onClick={() => tags.includes(tag) ? removeTag(tag) : setTags([...tags, tag])} style={{ width: 'auto', marginBottom: '8px' }}>
-                                            {tag}
-                                        </button>
-                                    ))}
-                                </div>
-
-                                <div className="form-group full">
-                                    <div style={{ display: 'flex', gap: '8px' }}>
-                                        <input type="text" placeholder="Προσθέστε δική σας ετικέτα" value={tagInput} onChange={e => setTagInput(e.target.value)} />
-                                        <button onClick={addTag} style={{ width: '120px', marginBottom: 0 }}>Προσθήκη</button>
-                                    </div>
-                                </div>
-
-                                {tags.length > 0 && (
-                                    <div style={{ marginBottom: '20px' }}>
-                                        {tags.map(tag => (
-                                            <span key={tag} className="tag">
-                                                {tag} <button onClick={() => removeTag(tag)} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', marginLeft: '4px', fontSize: '14px' }}>✕</button>
-                                            </span>
-                                        ))}
-                                    </div>
-                                )}
-
-                                <button onClick={addTransaction} style={{ marginTop: '20px' }}>✓ Προσθήκη</button>
                             </div>
                         )}
 
@@ -2302,6 +2777,7 @@
                                             <th>Κατηγορία</th>
                                             <th>Ποσό (€)</th>
                                             <th>Άτομο</th>
+                                            <th>📎</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -2312,6 +2788,11 @@
                                                 <td>{trans.category}</td>
                                                 <td><span className={trans.type === 'expense' ? 'amount-negative' : 'amount-positive'}>€{trans.amount.toFixed(2)}</span></td>
                                                 <td>{PEOPLE.find(p => p.id === trans.person)?.name || '-'}</td>
+                                                <td>
+                                                    {trans.receipt ? (
+                                                        <button onClick={() => viewReceipt(trans.receipt)} style={{ width: 'auto', padding: '4px 10px', fontSize: '14px', marginBottom: 0 }} title="Προβολή απόδειξης">📎</button>
+                                                    ) : <span style={{ color: '#ccc' }}>—</span>}
+                                                </td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -2319,6 +2800,119 @@
                             </div>
                         )}
                     </div>
+
+                    {/* ===== FLOATING QUICK-ADD BUTTON ===== */}
+                    {!fabOpen && (
+                        <>
+                            <div className="fab-label">Γρήγορο έξοδο</div>
+                            <button className="fab" onClick={openFab} title="Γρήγορη προσθήκη εξόδου">+</button>
+                        </>
+                    )}
+
+                    {/* ===== QUICK-ADD SHEET ===== */}
+                    {fabOpen && (
+                        <div className="fab-overlay" onClick={() => setFabOpen(false)}>
+                            <div className="fab-sheet" onClick={e => e.stopPropagation()}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                                    <h2 style={{ margin: 0, fontSize: '20px' }}>➕ Γρήγορο Έξοδο</h2>
+                                    <button onClick={() => setFabOpen(false)} style={{ width: 'auto', background: 'none', color: '#999', fontSize: '26px', boxShadow: 'none', padding: 0, marginBottom: 0 }}>×</button>
+                                </div>
+
+                                {/* Amount */}
+                                <input
+                                    type="number"
+                                    inputMode="decimal"
+                                    className="quick-amount"
+                                    placeholder="€ 0.00"
+                                    value={amount}
+                                    onChange={e => setAmount(e.target.value)}
+                                    step="0.01"
+                                    autoFocus
+                                />
+
+                                {/* Category */}
+                                <h3 style={{ marginBottom: '8px' }}>Κατηγορία</h3>
+                                <div className="quick-cats" style={{ maxHeight: '210px', overflowY: 'auto' }}>
+                                    {EXPENSE_CATEGORIES.map(cat => (
+                                        <button
+                                            key={cat}
+                                            className={`quick-cat ${category === cat && !customCategory ? 'selected' : ''}`}
+                                            onClick={() => { setCategory(cat); setCustomCategory(''); }}
+                                        >
+                                            {cat}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {/* Charge whom - IMPORTANT, always visible & required */}
+                                <h3 style={{ marginBottom: '8px' }}>
+                                    👤 Χρεώνω <span style={{ color: '#f44336', fontSize: '12px' }}>(υποχρεωτικό)</span>
+                                </h3>
+                                <div className="quick-people">
+                                    {PEOPLE.map(p => (
+                                        <button key={p.id} className={`quick-person ${person === p.id ? 'selected' : ''}`} onClick={() => setPerson(p.id)}>
+                                            {p.name}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {/* Advanced: date + note */}
+                                <div style={{ textAlign: 'center', margin: '4px 0 12px' }}>
+                                    <button onClick={() => setFabAdvanced(!fabAdvanced)} style={{ width: 'auto', background: 'none', color: '#667eea', boxShadow: 'none', fontSize: '13px', marginBottom: 0 }}>
+                                        {fabAdvanced ? '▲ Λιγότερα' : '▼ Ημερομηνία / Σημείωση'}
+                                    </button>
+                                </div>
+                                {fabAdvanced && (
+                                    <div style={{ marginBottom: '14px' }}>
+                                        <input type="date" value={date} onChange={e => setDate(e.target.value)} style={{ marginBottom: '10px' }} />
+                                        <textarea placeholder="Σημείωση (προαιρετικό)" value={note} onChange={e => setNote(e.target.value)}></textarea>
+                                    </div>
+                                )}
+
+                                {/* Receipt photo (optional) */}
+                                <input ref={receiptInputRef} type="file" accept="image/*" capture="environment" onChange={handleReceiptSelect} style={{ display: 'none' }} />
+                                {!receiptData ? (
+                                    <button onClick={() => receiptInputRef.current.click()} style={{ width: '100%', background: '#f0f0f0', color: '#667eea', marginBottom: '12px', border: '2px dashed #667eea', boxShadow: 'none' }}>
+                                        📷 Επισύναψη Απόδειξης (προαιρετικό)
+                                    </button>
+                                ) : (
+                                    <div style={{ marginBottom: '12px', position: 'relative', textAlign: 'center' }}>
+                                        <img src={receiptData} alt="απόδειξη" style={{ maxWidth: '100%', maxHeight: '160px', borderRadius: '10px', border: '2px solid #667eea' }} />
+                                        <button onClick={() => setReceiptData(null)} style={{ position: 'absolute', top: '4px', right: '4px', width: 'auto', background: '#f44336', padding: '4px 10px', fontSize: '12px', marginBottom: 0 }}>✕ Αφαίρεση</button>
+                                    </div>
+                                )}
+
+                                {/* Submit */}
+                                <button onClick={submitFab} className="quick-submit" disabled={receiptUploading}>
+                                    {receiptUploading ? '⏳ Ανέβασμα απόδειξης...' : '✓ Καταχώρηση Εξόδου'}
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ===== RECEIPT VIEWER ===== */}
+                    {viewingReceipt && (
+                        <div className="fab-overlay" style={{ alignItems: 'center', padding: '20px' }} onClick={() => setViewingReceipt(null)}>
+                            <div onClick={e => e.stopPropagation()} style={{ background: 'white', borderRadius: '16px', padding: '16px', maxWidth: '90vw', maxHeight: '90vh', overflow: 'auto', textAlign: 'center' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                                    <h3 style={{ margin: 0 }}>📎 Απόδειξη</h3>
+                                    <button onClick={() => setViewingReceipt(null)} style={{ width: 'auto', background: 'none', color: '#999', fontSize: '24px', boxShadow: 'none', padding: 0, marginBottom: 0 }}>×</button>
+                                </div>
+                                {viewingReceipt.loading ? (
+                                    <div style={{ padding: '60px', color: '#999' }}>⏳ Φόρτωση...</div>
+                                ) : (
+                                    <>
+                                        <img src={viewingReceipt.url} alt="απόδειξη" style={{ maxWidth: '100%', maxHeight: '75vh', borderRadius: '10px' }} />
+                                        <div style={{ marginTop: '12px' }}>
+                                            <a href={viewingReceipt.url} download="apodeixi.jpg" style={{ display: 'inline-block', textDecoration: 'none' }}>
+                                                <button style={{ width: 'auto', padding: '10px 20px', marginBottom: 0 }}>⬇️ Λήψη</button>
+                                            </a>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    )}
                 </div>
             );
         }
