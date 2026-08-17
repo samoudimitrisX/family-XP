@@ -1123,6 +1123,9 @@
             const [receiptData, setReceiptData] = useState(null); // base64 preview before save
             const [receiptUploading, setReceiptUploading] = useState(false);
             const [viewingReceipt, setViewingReceipt] = useState(null); // {loading, url} for modal
+            const [showImportModal, setShowImportModal] = useState(false);
+            const [importPreview, setImportPreview] = useState(null);
+            const excelInputRef = useRef(null);
             const receiptInputRef = useRef(null);
             const [tags, setTags] = useState([]);
             const [tagInput, setTagInput] = useState('');
@@ -1676,6 +1679,8 @@
                 setCustomCategory('');
                 setTags([]);
                 setReceiptData(null);
+                setManageCats(false);
+                setNewCatInput('');
                 setDate(new Date().toISOString().split('T')[0]);
                 setPerson(fabVariant === 'A' ? 'family' : '');
                 setFabAdvanced(false);
@@ -2173,6 +2178,151 @@
                 }
             };
 
+            // ===== EXCEL IMPORT (date | amount | description) =====
+            // Smart map: description -> known category (Greek+English keywords), else keep as note
+            const CATEGORY_KEYWORDS = {
+                'Σούπερμάρκετ': ['supermarket', 'σουπερ', 'σούπερ', 'market', 'λαικη', 'λαϊκή', 'laika'],
+                'Φούρνος': ['φουρνος', 'φούρνος', 'bakery', 'ψωμι'],
+                'Περίπτερο': ['περιπτερο', 'περίπτερο', 'kiosk'],
+                'Wolt': ['wolt', 'efood', 'delivery', 'ντελιβερι'],
+                'Έξοδος': ['εξοδος', 'έξοδος', 'εξοδο', 'καφε', 'καφέ', 'coffee', 'cafe', 'caffe', 'ζορμπας', 'ζορμπάς', 'εστιατ', 'restaurant', 'μπαρ', 'bar'],
+                'Βενζίνη': ['βενζινη', 'βενζίνη', 'καυσιμα', 'καύσιμα', 'petrol', 'gas', 'fuel', 'καυστικη', 'καυστική'],
+                'Βενζίνη γραφείο': ['βενζινη γραφειο', 'for work', 'work fuel'],
+                'Ρούχα': ['ρουχα', 'ρούχα', 'clothes', 'μπουφαν', 'μπουφάν'],
+                'Μάνα': ['μανα', 'μάνα', 'mother', 'mama'],
+                'Παπούτσια': ['παπουτσια', 'παπούτσια', 'shoes'],
+                'Δάνειο': ['δανειο', 'δάνειο', 'loan'],
+                'Ρεύμα': ['ρευμα', 'ρεύμα', 'αηκ', 'ahk', 'eac', 'electricity'],
+                'Νερό': ['νερο', 'νερό', 'water'],
+                'Κινητό': ['κινητο', 'κινητό', 'primetel', 'primtel', 'mobile', 'cyta', 'epic', 'mtn'],
+                'Ίντερνετ': ['internet', 'ιντερνετ', 'ίντερνετ', 'cablenet', 'cablnet', 'net'],
+                'Φάρμακα': ['φαρμακ', 'pharmacy', 'medicine', 'φαρμακειο', 'φαρμακείο'],
+                'Netflix': ['netflix', 'νετφλιξ'],
+                'Σέρβις Αυτοκινήτου': ['service', 'σερβις', 'σέρβις', 'car service', 'carwash', 'car wash', 'συνεργειο', 'συνεργείο'],
+                'Ταξίδια': ['ταξιδ', 'trip', 'travel', 'flight', 'αεροπορικ'],
+                'Δώρα': ['δωρο', 'δώρο', 'δωρα', 'δώρα', 'gift'],
+                'Health Care': ['health', 'γιατρος', 'γιατρός', 'doctor', 'ιατρ', 'gym', 'γυμναστ'],
+                'Πατέρας': ['πατερας', 'πατέρας', 'father', 'μπαμπα'],
+                'Προσωπικά': ['προσωπικ', 'personal', 'κομμωτηριο', 'κομμωτήριο', 'κουρεμα', 'κούρεμα', 'κομμωτ'],
+                'Unplanned': ['unplanned', 'εκτακτο', 'έκτακτο'],
+                'Γραφείο': ['γραφειο', 'γραφείο', 'office', 'esteeldesign', 'steeldesign'],
+                'Διάφορα': ['διαφορα', 'διάφορα', 'misc', 'other', 'αλλο', 'άλλο'],
+                'Επιδιόρθωση Σπιτιού': ['επιδιορθωση', 'επιδιόρθωση', 'σπιτι', 'σπίτι', 'home repair', 'repair', 'for home'],
+                'Φόροι Σπιτιού': ['φοροι', 'φόροι', 'tax', 'φορος', 'φόρος']
+            };
+
+            const matchCategory = (desc) => {
+                if (!desc) return null;
+                const d = desc.toString().trim().toLowerCase();
+                // exact category name match first
+                for (const cat of DEFAULT_EXPENSE_CATEGORIES) {
+                    if (cat.toLowerCase() === d) return cat;
+                }
+                // keyword match
+                for (const [cat, kws] of Object.entries(CATEGORY_KEYWORDS)) {
+                    if (kws.some(k => d.includes(k))) return cat;
+                }
+                return null;
+            };
+
+            const parseImportDate = (val) => {
+                if (!val) return null;
+                if (val instanceof Date && !isNaN(val)) return val.toISOString().split('T')[0];
+                const s = val.toString().trim();
+                if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0, 10);
+                const m = s.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})$/);
+                if (m) {
+                    let [, d, mo, y] = m;
+                    if (y.length === 2) y = '20' + y;
+                    return `${y}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`;
+                }
+                const parsed = new Date(s);
+                return isNaN(parsed) ? null : parsed.toISOString().split('T')[0];
+            };
+
+            const parseImportAmount = (val) => {
+                if (val === null || val === undefined || val === '') return null;
+                let s = val.toString().trim().replace(/[€$\s]/g, '');
+                if (s.includes('.') && s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+                else if (s.includes(',')) s = s.replace(',', '.');
+                const n = parseFloat(s);
+                return isNaN(n) ? null : Math.abs(n);
+            };
+
+            const handleExcelImport = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                if (typeof XLSX === 'undefined') {
+                    setMessage({ type: 'error', text: 'Η βιβλιοθήκη Excel δεν φορτώθηκε' });
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    try {
+                        const wb = XLSX.read(new Uint8Array(ev.target.result), { type: 'array', cellDates: true });
+                        const sheet = wb.Sheets[wb.SheetNames[0]];
+                        const rows = XLSX.utils.sheet_to_json(sheet, { defval: '', raw: false });
+                        if (rows.length === 0) { setMessage({ type: 'error', text: 'Άδειο αρχείο' }); return; }
+
+                        // Find columns by header (flexible: date/amount/description in any language)
+                        const headers = Object.keys(rows[0]);
+                        const findCol = (opts) => headers.find(h => opts.some(o => h.toString().trim().toLowerCase().includes(o)));
+                        const dateCol = findCol(['date', 'ημερ']);
+                        const amountCol = findCol(['amount', 'ποσ', 'αξ']);
+                        const descCol = findCol(['desc', 'περιγρ', 'κατηγ', 'αιτ']);
+
+                        if (!dateCol || !amountCol) {
+                            setMessage({ type: 'error', text: 'Δεν βρέθηκαν στήλες date/amount' });
+                            setTimeout(() => setMessage(''), 3000);
+                            return;
+                        }
+
+                        const valid = [];
+                        let matched = 0, asNote = 0;
+                        rows.forEach((row, idx) => {
+                            const date = parseImportDate(row[dateCol]);
+                            const amount = parseImportAmount(row[amountCol]);
+                            const desc = descCol ? (row[descCol] || '').toString().trim() : '';
+                            if (!date || amount === null || amount === 0) return;
+                            const cat = matchCategory(desc);
+                            if (cat) matched++; else if (desc) asNote++;
+                            valid.push({
+                                id: Date.now() + idx + Math.floor(Math.random() * 100000),
+                                amount,
+                                category: cat || 'Διάφορα',
+                                person: 'family',
+                                note: cat ? desc : (desc || ''), // keep original desc as note too
+                                tags: [],
+                                date,
+                                type: 'expense',
+                                receipt: null
+                            });
+                        });
+
+                        if (valid.length === 0) {
+                            setMessage({ type: 'error', text: 'Δεν βρέθηκαν έγκυρες εγγραφές' });
+                            setTimeout(() => setMessage(''), 3000);
+                            return;
+                        }
+                        setImportPreview({ rows: valid, matched, asNote });
+                    } catch (err) {
+                        console.error(err);
+                        setMessage({ type: 'error', text: 'Σφάλμα ανάγνωσης: ' + err.message });
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+                e.target.value = '';
+            };
+
+            const confirmImport = () => {
+                if (!importPreview) return;
+                setExpenses([...importPreview.rows, ...expenses]);
+                setMessage({ type: 'success', text: `✅ Εισήχθησαν ${importPreview.rows.length} έξοδα!` });
+                setTimeout(() => setMessage(''), 3500);
+                setImportPreview(null);
+                setShowImportModal(false);
+            };
+
             const exportData = () => {
                 const data = { expenses, incomes, budgets, customCategories, exportDate: new Date().toISOString() };
                 const json = JSON.stringify(data, null, 2);
@@ -2240,7 +2390,9 @@
                                 <button className="header-btn" onClick={exportToExcel}>📊 Excel</button>
                                 <button className="header-btn" onClick={exportToPDF}>📄 PDF</button>
                                 <button className="header-btn" onClick={exportData}>💾 Backup</button>
+                                <button className="header-btn" onClick={() => setShowImportModal(true)}>📥 Import</button>
                                 <button className="header-btn" onClick={handleImportClick}>📁 Restore</button>
+                                <input ref={excelInputRef} type="file" accept=".xlsx,.xls,.csv" onChange={handleExcelImport} style={{ display: 'none' }} />
                                 {dropboxToken && <button className="header-btn" onClick={disconnectDropbox} title="Αποσύνδεση Dropbox">🔌</button>}
                                 <input ref={fileInputRef} type="file" accept=".json" onChange={importData} style={{ display: 'none' }} />
                             </div>
@@ -2831,17 +2983,34 @@
                                 />
 
                                 {/* Category */}
-                                <h3 style={{ marginBottom: '8px' }}>Κατηγορία</h3>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                                    <h3 style={{ margin: 0 }}>Κατηγορία</h3>
+                                    <button onClick={() => setManageCats(!manageCats)} style={{ width: 'auto', padding: '4px 12px', fontSize: '11px', background: manageCats ? '#f44336' : '#999', marginBottom: 0 }}>
+                                        {manageCats ? '✓ Τέλος' : '✏️ Διαχείριση'}
+                                    </button>
+                                </div>
                                 <div className="quick-cats" style={{ maxHeight: '210px', overflowY: 'auto' }}>
-                                    {EXPENSE_CATEGORIES.map(cat => (
-                                        <button
-                                            key={cat}
-                                            className={`quick-cat ${category === cat && !customCategory ? 'selected' : ''}`}
-                                            onClick={() => { setCategory(cat); setCustomCategory(''); }}
-                                        >
-                                            {cat}
-                                        </button>
-                                    ))}
+                                    {EXPENSE_CATEGORIES.map(cat => {
+                                        const isCustom = customCategories.includes(cat);
+                                        return (
+                                            <button
+                                                key={cat}
+                                                className={`quick-cat ${isCustom ? 'custom' : ''} ${manageCats ? 'manage' : ''} ${category === cat && !customCategory ? 'selected' : ''}`}
+                                                onClick={() => { if (!manageCats) { setCategory(cat); setCustomCategory(''); } }}
+                                            >
+                                                {cat}
+                                                {isCustom && manageCats && (
+                                                    <span className="del-x" onClick={(e) => { e.stopPropagation(); deleteCustomCategory(cat); }}>✕</span>
+                                                )}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+
+                                {/* Add new category inline */}
+                                <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+                                    <input type="text" placeholder="➕ Νέα κατηγορία..." value={newCatInput} onChange={e => setNewCatInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') addCustomCategory(); }} style={{ flex: 1, marginBottom: 0 }} />
+                                    <button onClick={addCustomCategory} style={{ width: 'auto', padding: '0 20px', marginBottom: 0 }}>Προσθήκη</button>
                                 </div>
 
                                 {/* Charge whom - IMPORTANT, always visible & required */}
@@ -2886,6 +3055,82 @@
                                 <button onClick={submitFab} className="quick-submit" disabled={receiptUploading}>
                                     {receiptUploading ? '⏳ Ανέβασμα απόδειξης...' : '✓ Καταχώρηση Εξόδου'}
                                 </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ===== EXCEL IMPORT MODAL ===== */}
+                    {showImportModal && (
+                        <div className="fab-overlay" style={{ alignItems: 'center', padding: '20px' }} onClick={() => { setShowImportModal(false); setImportPreview(null); }}>
+                            <div className="fab-sheet" style={{ borderRadius: '16px', maxWidth: '640px' }} onClick={e => e.stopPropagation()}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                                    <h2 style={{ margin: 0, fontSize: '20px' }}>📥 Εισαγωγή από Excel</h2>
+                                    <button onClick={() => { setShowImportModal(false); setImportPreview(null); }} style={{ width: 'auto', background: 'none', color: '#999', fontSize: '26px', boxShadow: 'none', padding: 0, marginBottom: 0 }}>×</button>
+                                </div>
+
+                                {!importPreview ? (
+                                    <div>
+                                        <p style={{ color: '#666', fontSize: '14px', lineHeight: 1.6, marginBottom: '16px' }}>
+                                            Ανέβασε αρχείο Excel/CSV με στήλες <strong>date</strong>, <strong>amount</strong>, <strong>description</strong>.
+                                            Η περιγραφή αντιστοιχίζεται αυτόματα σε κατηγορία όπου γίνεται (π.χ. supermarket → Σούπερμάρκετ), αλλιώς κρατιέται ως σημείωση. Όλα μπαίνουν ως «Οικογένεια».
+                                        </p>
+                                        <div style={{ background: '#f8f9ff', border: '2px dashed #667eea', borderRadius: '12px', padding: '28px', textAlign: 'center' }}>
+                                            <div style={{ fontSize: '38px', marginBottom: '10px' }}>📄</div>
+                                            <button onClick={() => excelInputRef.current.click()} style={{ width: 'auto', padding: '12px 26px', fontSize: '15px' }}>Επιλογή Αρχείου</button>
+                                        </div>
+                                        <div style={{ marginTop: '14px', background: '#fffde7', padding: '12px', borderRadius: '8px', fontSize: '12px', color: '#666', lineHeight: 1.6 }}>
+                                            💡 Δεκτές ημερομηνίες: 2026-01-02, 02/01/2026, 02.01.2026. Ποσά με € και κόμμα (230,0) ή τελεία.
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div>
+                                        <div style={{ display: 'flex', gap: '10px', marginBottom: '14px', flexWrap: 'wrap' }}>
+                                            <div style={{ flex: 1, minWidth: '110px', background: '#e8f5e9', padding: '12px', borderRadius: '8px', textAlign: 'center' }}>
+                                                <div style={{ fontSize: '26px', fontWeight: 800, color: '#2e7d32' }}>{importPreview.rows.length}</div>
+                                                <div style={{ fontSize: '11px', color: '#666' }}>Έξοδα προς εισαγωγή</div>
+                                            </div>
+                                            <div style={{ flex: 1, minWidth: '110px', background: '#e3f2fd', padding: '12px', borderRadius: '8px', textAlign: 'center' }}>
+                                                <div style={{ fontSize: '26px', fontWeight: 800, color: '#1565c0' }}>{importPreview.matched}</div>
+                                                <div style={{ fontSize: '11px', color: '#666' }}>Βρήκαν κατηγορία</div>
+                                            </div>
+                                            <div style={{ flex: 1, minWidth: '110px', background: '#fff3e0', padding: '12px', borderRadius: '8px', textAlign: 'center' }}>
+                                                <div style={{ fontSize: '26px', fontWeight: 800, color: '#e65100' }}>{importPreview.asNote}</div>
+                                                <div style={{ fontSize: '11px', color: '#666' }}>Ως «Διάφορα»+σημείωση</div>
+                                            </div>
+                                        </div>
+
+                                        <div style={{ maxHeight: '260px', overflow: 'auto', border: '1px solid #e0e0e0', borderRadius: '8px', marginBottom: '14px' }}>
+                                            <table style={{ margin: 0 }}>
+                                                <thead>
+                                                    <tr>
+                                                        <th>Ημ/νία</th>
+                                                        <th>Ποσό</th>
+                                                        <th>Κατηγορία</th>
+                                                        <th>Σημείωση</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {importPreview.rows.slice(0, 60).map((r, i) => (
+                                                        <tr key={i}>
+                                                            <td>{r.date}</td>
+                                                            <td><span className="amount-negative">€{r.amount.toFixed(2)}</span></td>
+                                                            <td>{r.category}</td>
+                                                            <td style={{ fontSize: '12px', color: '#888' }}>{r.note}</td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                            {importPreview.rows.length > 60 && (
+                                                <div style={{ padding: '10px', textAlign: 'center', color: '#999', fontSize: '12px' }}>...και {importPreview.rows.length - 60} ακόμα</div>
+                                            )}
+                                        </div>
+
+                                        <div style={{ display: 'flex', gap: '10px' }}>
+                                            <button onClick={confirmImport} className="quick-submit" style={{ flex: 1, marginTop: 0 }}>✓ Εισαγωγή {importPreview.rows.length} εξόδων</button>
+                                            <button onClick={() => setImportPreview(null)} style={{ flex: 0.4, background: '#f0f0f0', color: '#333', marginBottom: 0 }}>← Πίσω</button>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}
