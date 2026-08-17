@@ -1125,6 +1125,8 @@
             const [viewingReceipt, setViewingReceipt] = useState(null); // {loading, url} for modal
             const [showImportModal, setShowImportModal] = useState(false);
             const [importPreview, setImportPreview] = useState(null);
+            const [editItem, setEditItem] = useState(null); // transaction being edited
+            const [undoDelete, setUndoDelete] = useState(null); // {item, type} for undo
             const excelInputRef = useRef(null);
             const receiptInputRef = useRef(null);
             const [tags, setTags] = useState([]);
@@ -1712,6 +1714,45 @@
                 } else {
                     setIncomes(incomes.filter(i => i.id !== id));
                 }
+            };
+
+            const confirmDelete = (trans) => {
+                // Remove immediately, keep a copy for undo (5s)
+                deleteTransaction(trans.id, trans.type === 'expense');
+                setUndoDelete({ item: trans, type: trans.type });
+                setTimeout(() => {
+                    setUndoDelete(prev => (prev && prev.item.id === trans.id) ? null : prev);
+                }, 5000);
+            };
+
+            const doUndoDelete = () => {
+                if (!undoDelete) return;
+                if (undoDelete.type === 'expense') {
+                    setExpenses(prev => [undoDelete.item, ...prev].sort((a, b) => new Date(b.date) - new Date(a.date)));
+                } else {
+                    setIncomes(prev => [undoDelete.item, ...prev].sort((a, b) => new Date(b.date) - new Date(a.date)));
+                }
+                setUndoDelete(null);
+                setMessage({ type: 'success', text: '↩️ Επαναφέρθηκε!' });
+                setTimeout(() => setMessage(''), 2000);
+            };
+
+            const saveEdit = () => {
+                if (!editItem) return;
+                if (!editItem.amount || isNaN(editItem.amount) || editItem.amount <= 0) {
+                    setMessage({ type: 'error', text: 'Άκυρο ποσό' });
+                    setTimeout(() => setMessage(''), 2000);
+                    return;
+                }
+                const updated = { ...editItem, amount: parseFloat(editItem.amount) };
+                if (editItem.type === 'expense') {
+                    setExpenses(expenses.map(e => e.id === editItem.id ? updated : e));
+                } else {
+                    setIncomes(incomes.map(i => i.id === editItem.id ? updated : i));
+                }
+                setEditItem(null);
+                setMessage({ type: 'success', text: '✅ Ενημερώθηκε!' });
+                setTimeout(() => setMessage(''), 2500);
             };
 
             const getTotalByMonth = (month, isExp) => {
@@ -2930,6 +2971,7 @@
                                             <th>Ποσό (€)</th>
                                             <th>Άτομο</th>
                                             <th>📎</th>
+                                            <th>Ενέργειες</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -2945,6 +2987,10 @@
                                                         <button onClick={() => viewReceipt(trans.receipt)} style={{ width: 'auto', padding: '4px 10px', fontSize: '14px', marginBottom: 0 }} title="Προβολή απόδειξης">📎</button>
                                                     ) : <span style={{ color: '#ccc' }}>—</span>}
                                                 </td>
+                                                <td style={{ whiteSpace: 'nowrap' }}>
+                                                    <button onClick={() => setEditItem({ ...trans })} style={{ width: 'auto', padding: '4px 8px', fontSize: '14px', marginBottom: 0, marginRight: '4px', background: '#667eea' }} title="Επεξεργασία">✏️</button>
+                                                    <button onClick={() => confirmDelete(trans)} style={{ width: 'auto', padding: '4px 8px', fontSize: '14px', marginBottom: 0, background: '#f44336' }} title="Διαγραφή">🗑️</button>
+                                                </td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -2954,6 +3000,14 @@
                     </div>
 
                     {/* ===== FLOATING QUICK-ADD BUTTON ===== */}
+                    {/* ===== UNDO DELETE TOAST ===== */}
+                    {undoDelete && (
+                        <div style={{ position: 'fixed', bottom: '28px', left: '50%', transform: 'translateX(-50%)', zIndex: 2500, background: '#1a1a2e', color: 'white', padding: '12px 18px', borderRadius: '12px', boxShadow: '0 8px 28px rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', gap: '14px', maxWidth: '90vw' }}>
+                            <span style={{ fontSize: '14px' }}>🗑️ Διαγράφηκε: {undoDelete.item.category} €{undoDelete.item.amount.toFixed(2)}</span>
+                            <button onClick={doUndoDelete} style={{ width: 'auto', background: '#667eea', padding: '6px 16px', fontSize: '13px', fontWeight: 700, marginBottom: 0 }}>↩️ Undo</button>
+                        </div>
+                    )}
+
                     {!fabOpen && (
                         <>
                             <div className="fab-label">Γρήγορο έξοδο</div>
@@ -3169,6 +3223,48 @@
                                         </div>
                                     </div>
                                 )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ===== EDIT MODAL ===== */}
+                    {editItem && (
+                        <div className="fab-overlay" style={{ alignItems: 'center', padding: '20px' }} onClick={() => setEditItem(null)}>
+                            <div className="fab-sheet" style={{ borderRadius: '16px', maxWidth: '480px' }} onClick={e => e.stopPropagation()}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                                    <h2 style={{ margin: 0, fontSize: '20px' }}>✏️ Επεξεργασία {editItem.type === 'expense' ? 'Εξόδου' : 'Εσόδου'}</h2>
+                                    <button onClick={() => setEditItem(null)} style={{ width: 'auto', background: 'none', color: '#999', fontSize: '26px', boxShadow: 'none', padding: 0, marginBottom: 0 }}>×</button>
+                                </div>
+
+                                <h3 style={{ marginBottom: '6px' }}>Ποσό (€)</h3>
+                                <input type="number" inputMode="decimal" value={editItem.amount} onChange={e => setEditItem({ ...editItem, amount: e.target.value })} step="0.01" style={{ marginBottom: '12px' }} />
+
+                                <h3 style={{ marginBottom: '6px' }}>Κατηγορία</h3>
+                                <select value={editItem.category} onChange={e => setEditItem({ ...editItem, category: e.target.value })} style={{ marginBottom: '12px' }}>
+                                    {(editItem.type === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES).map(c => <option key={c} value={c}>{c}</option>)}
+                                    {/* keep current value even if it's a one-off not in the list */}
+                                    {!(editItem.type === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES).includes(editItem.category) && <option value={editItem.category}>{editItem.category}</option>}
+                                </select>
+
+                                <h3 style={{ marginBottom: '6px' }}>👤 {editItem.type === 'expense' ? 'Χρεώνω' : 'Ποιος'}</h3>
+                                <div className="quick-people" style={{ marginBottom: '12px' }}>
+                                    {PEOPLE.map(p => (
+                                        <button key={p.id} className={`quick-person ${editItem.person === p.id ? 'selected' : ''}`} onClick={() => setEditItem({ ...editItem, person: p.id })}>
+                                            {p.name}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                <h3 style={{ marginBottom: '6px' }}>📅 Ημερομηνία</h3>
+                                <input type="date" value={editItem.date} onChange={e => setEditItem({ ...editItem, date: e.target.value })} style={{ marginBottom: '12px' }} />
+
+                                <h3 style={{ marginBottom: '6px' }}>📝 {editItem.type === 'expense' ? 'Σημείωση' : 'Περιγραφή'}</h3>
+                                <textarea value={editItem.note || ''} onChange={e => setEditItem({ ...editItem, note: e.target.value })} style={{ marginBottom: '16px' }}></textarea>
+
+                                <div style={{ display: 'flex', gap: '10px' }}>
+                                    <button onClick={saveEdit} className="quick-submit" style={{ flex: 1, marginTop: 0 }}>💾 Αποθήκευση</button>
+                                    <button onClick={() => setEditItem(null)} style={{ flex: 0.4, background: '#f0f0f0', color: '#333', marginBottom: 0 }}>Ακύρωση</button>
+                                </div>
                             </div>
                         </div>
                     )}
