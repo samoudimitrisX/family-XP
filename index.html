@@ -1693,7 +1693,7 @@
                     setTimeout(() => setMessage(''), 2000);
                     return;
                 }
-                if (fabVariant === 'B' && !person) {
+                if (isExpense && fabVariant === 'B' && !person) {
                     setMessage({ type: 'error', text: 'Διάλεξε ποιον χρεώνεις' });
                     setTimeout(() => setMessage(''), 2000);
                     return;
@@ -2965,9 +2965,15 @@
                     {fabOpen && (
                         <div className="fab-overlay" onClick={() => setFabOpen(false)}>
                             <div className="fab-sheet" onClick={e => e.stopPropagation()}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                                    <h2 style={{ margin: 0, fontSize: '20px' }}>➕ Γρήγορο Έξοδο</h2>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                                    <h2 style={{ margin: 0, fontSize: '20px' }}>{isExpense ? '➕ Γρήγορο Έξοδο' : '💚 Προσθήκη Εσόδου'}</h2>
                                     <button onClick={() => setFabOpen(false)} style={{ width: 'auto', background: 'none', color: '#999', fontSize: '26px', boxShadow: 'none', padding: 0, marginBottom: 0 }}>×</button>
+                                </div>
+
+                                {/* Expense / Income toggle */}
+                                <div className="variant-switch" style={{ marginBottom: '16px' }}>
+                                    <button className={isExpense ? 'active' : ''} onClick={() => setIsExpense(true)}>❌ Έξοδο</button>
+                                    <button className={!isExpense ? 'active' : ''} onClick={() => { setIsExpense(false); setManageCats(false); if (!person) setPerson('family'); }}>💚 Έσοδο</button>
                                 </div>
 
                                 {/* Amount */}
@@ -2982,6 +2988,8 @@
                                     autoFocus
                                 />
 
+                                {isExpense ? (
+                                  <>
                                 {/* Category */}
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                                     <h3 style={{ margin: 0 }}>Κατηγορία</h3>
@@ -3050,10 +3058,40 @@
                                         <button onClick={() => setReceiptData(null)} style={{ position: 'absolute', top: '4px', right: '4px', width: 'auto', background: '#f44336', padding: '4px 10px', fontSize: '12px', marginBottom: 0 }}>✕ Αφαίρεση</button>
                                     </div>
                                 )}
+                                  </>
+                                ) : (
+                                  <>
+                                {/* Income category */}
+                                <h3 style={{ marginBottom: '8px' }}>Κατηγορία Εσόδου</h3>
+                                <div className="quick-cats" style={{ gridTemplateColumns: 'repeat(3, 1fr)', marginBottom: '16px' }}>
+                                    {INCOME_CATEGORIES.map(cat => (
+                                        <button key={cat} className={`quick-cat ${incomeCategory === cat ? 'selected' : ''}`} onClick={() => setIncomeCategory(cat)}>
+                                            {cat}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {/* Who received (optional but useful) */}
+                                <h3 style={{ marginBottom: '8px' }}>👤 Ποιος</h3>
+                                <div className="quick-people" style={{ marginBottom: '14px' }}>
+                                    {PEOPLE.map(p => (
+                                        <button key={p.id} className={`quick-person ${person === p.id ? 'selected' : ''}`} onClick={() => setPerson(p.id)}>
+                                            {p.name}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {/* Date + description */}
+                                <h3 style={{ marginBottom: '8px' }}>📅 Ημερομηνία</h3>
+                                <input type="date" value={date} onChange={e => setDate(e.target.value)} style={{ marginBottom: '12px' }} />
+                                <h3 style={{ marginBottom: '8px' }}>📝 Περιγραφή</h3>
+                                <textarea placeholder="π.χ. Μισθός Ιανουαρίου, bonus, ενοίκιο..." value={note} onChange={e => setNote(e.target.value)} style={{ marginBottom: '4px' }}></textarea>
+                                  </>
+                                )}
 
                                 {/* Submit */}
                                 <button onClick={submitFab} className="quick-submit" disabled={receiptUploading}>
-                                    {receiptUploading ? '⏳ Ανέβασμα απόδειξης...' : '✓ Καταχώρηση Εξόδου'}
+                                    {receiptUploading ? '⏳ Ανέβασμα...' : (isExpense ? '✓ Καταχώρηση Εξόδου' : '💚 Καταχώρηση Εσόδου')}
                                 </button>
                             </div>
                         </div>
