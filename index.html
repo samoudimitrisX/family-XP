@@ -1127,6 +1127,8 @@
             const [importPreview, setImportPreview] = useState(null);
             const [editItem, setEditItem] = useState(null); // transaction being edited
             const [undoDelete, setUndoDelete] = useState(null); // {item, type} for undo
+            const [listScope, setListScope] = useState('month'); // 'month' | 'all'
+            const [listSearch, setListSearch] = useState('');
             const excelInputRef = useRef(null);
             const receiptInputRef = useRef(null);
             const [tags, setTags] = useState([]);
@@ -1136,6 +1138,18 @@
             const [activeTab, setActiveTab] = useState('dashboard');
             const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().split('T')[0].substring(0, 7));
             const [analyticsTab, setAnalyticsTab] = useState('trends');
+            // Analysis groups: virtual category bundles, analytics-only, synced. [{id,name,cats:[]}]
+            const [analysisGroups, setAnalysisGroups] = useState([]);
+            const [newGroupName, setNewGroupName] = useState('');
+            const [newGroupCats, setNewGroupCats] = useState([]);
+            const [editingGroupId, setEditingGroupId] = useState(null);
+            // Report builder controls
+            const [rbGroupBy, setRbGroupBy] = useState('category'); // 'month'|'category'|'person'
+            const [rbChart, setRbChart] = useState('bar'); // 'bar'|'line'|'pie'
+            const [rbFrom, setRbFrom] = useState('');
+            const [rbTo, setRbTo] = useState('');
+            const [rbCats, setRbCats] = useState([]); // filter categories (empty = all)
+            const [rbPerson, setRbPerson] = useState('all');
             const [isExpense, setIsExpense] = useState(true);
             const [dropboxToken, setDropboxToken] = useState(null);
             const [syncStatus, setSyncStatus] = useState('idle'); // idle | syncing | synced | error | offline
@@ -1182,6 +1196,36 @@
                 if (category === name) setCategory(DEFAULT_EXPENSE_CATEGORIES[0]);
             };
 
+            // ===== ANALYSIS GROUPS (analytics-only virtual bundles) =====
+            const saveGroup = () => {
+                const name = newGroupName.trim();
+                if (!name) { setMessage({ type: 'error', text: 'Δώσε όνομα ομάδας' }); setTimeout(() => setMessage(''), 2000); return; }
+                if (newGroupCats.length === 0) { setMessage({ type: 'error', text: 'Διάλεξε κατηγορίες' }); setTimeout(() => setMessage(''), 2000); return; }
+                if (editingGroupId) {
+                    setAnalysisGroups(analysisGroups.map(g => g.id === editingGroupId ? { ...g, name, cats: newGroupCats } : g));
+                } else {
+                    setAnalysisGroups([...analysisGroups, { id: Date.now(), name, cats: newGroupCats }]);
+                }
+                setNewGroupName(''); setNewGroupCats([]); setEditingGroupId(null);
+                setMessage({ type: 'success', text: '✅ Ομάδα αποθηκεύτηκε!' });
+                setTimeout(() => setMessage(''), 2000);
+            };
+
+            const editGroup = (g) => {
+                setEditingGroupId(g.id);
+                setNewGroupName(g.name);
+                setNewGroupCats([...g.cats]);
+            };
+
+            const deleteGroup = (id) => {
+                setAnalysisGroups(analysisGroups.filter(g => g.id !== id));
+                if (editingGroupId === id) { setEditingGroupId(null); setNewGroupName(''); setNewGroupCats([]); }
+            };
+
+            const toggleGroupCat = (cat) => {
+                setNewGroupCats(newGroupCats.includes(cat) ? newGroupCats.filter(c => c !== cat) : [...newGroupCats, cat]);
+            };
+
             useEffect(() => {
                 const saved = localStorage.getItem('family_finances_ultimate');
                 if (saved) {
@@ -1190,6 +1234,7 @@
                     setIncomes(data.incomes || []);
                     setBudgets(data.budgets || {});
                     setCustomCategories(data.customCategories || []);
+                    setAnalysisGroups(data.analysisGroups || []);
                 }
                 setDataLoaded(true);
             }, []);
@@ -1484,12 +1529,14 @@
                         setIncomes(remote.incomes || []);
                         setBudgets(remote.budgets || {});
                         if (remote.customCategories) setCustomCategories(remote.customCategories);
+                        if (remote.analysisGroups) setAnalysisGroups(remote.analysisGroups);
                         localStorage.setItem('last_local_update', String(remoteStamp || Date.now()));
                         localStorage.setItem('family_finances_ultimate', JSON.stringify({
                             expenses: remote.expenses || [],
                             incomes: remote.incomes || [],
                             budgets: remote.budgets || {},
-                            customCategories: remote.customCategories || []
+                            customCategories: remote.customCategories || [],
+                            analysisGroups: remote.analysisGroups || []
                         }));
                         setSyncStatus('synced');
                         setLastSync(new Date());
@@ -1510,7 +1557,7 @@
                     // Otherwise: local is the source of truth -> push it up
                     const stampToKeep = localStamp || Date.now();
                     await uploadToDropbox(token, {
-                        expenses, incomes, budgets, customCategories,
+                        expenses, incomes, budgets, customCategories, analysisGroups,
                         updatedAt: stampToKeep
                     });
                     localStorage.setItem('last_local_update', String(stampToKeep));
@@ -1558,7 +1605,7 @@
 
 
             useEffect(() => {
-                localStorage.setItem('family_finances_ultimate', JSON.stringify({ expenses, incomes, budgets, customCategories }));
+                localStorage.setItem('family_finances_ultimate', JSON.stringify({ expenses, incomes, budgets, customCategories, analysisGroups }));
 
                 if (!dataLoaded) return;
 
@@ -1575,7 +1622,7 @@
                     if (syncTimer.current) clearTimeout(syncTimer.current);
                     syncTimer.current = setTimeout(() => syncNow(true), 2000);
                 }
-            }, [expenses, incomes, budgets, customCategories]);
+            }, [expenses, incomes, budgets, customCategories, analysisGroups]);
 
             // Weekly auto-backup check: runs once data is loaded and Dropbox is connected
             useEffect(() => {
@@ -1595,7 +1642,7 @@
                 if (activeTab === 'analytics') {
                     setTimeout(() => updateAnalyticsCharts(), 100);
                 }
-            }, [activeTab, expenses, incomes, analyticsTab, selectedMonth]);
+            }, [activeTab, expenses, incomes, analyticsTab, selectedMonth, rbGroupBy, rbChart, rbFrom, rbTo, rbCats, rbPerson, analysisGroups]);
 
             const addTransaction = async () => {
                 if (!amount || isNaN(amount)) {
@@ -2031,8 +2078,44 @@
                         }
                     });
                 }
-            };
 
+                if (chartRefs.current.reportBuilder && analyticsTab === 'builder') {
+                    const rep = buildReport();
+                    if (chartInstances.current.reportBuilder) chartInstances.current.reportBuilder.destroy();
+                    if (rep.values.length === 0) return;
+                    const bg = rep.labels.map((_, i) => COLORS[i % COLORS.length]);
+                    const isPie = rbChart === 'pie';
+                    chartInstances.current.reportBuilder = new Chart(chartRefs.current.reportBuilder, {
+                        type: rbChart,
+                        data: {
+                            labels: rep.labels,
+                            datasets: [{
+                                label: 'Έξοδα',
+                                data: rep.values,
+                                backgroundColor: isPie ? bg : (rbChart === 'line' ? '#667eea33' : bg),
+                                borderColor: rbChart === 'line' ? '#667eea' : bg,
+                                borderWidth: 2,
+                                borderRadius: rbChart === 'bar' ? 8 : 0,
+                                tension: 0.4,
+                                fill: rbChart === 'line'
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: isPie, position: 'bottom' },
+                                tooltip: { callbacks: { label: (ctx) => {
+                                    const val = ctx.parsed.y ?? ctx.parsed;
+                                    const pct = rep.total > 0 ? ((val / rep.total) * 100).toFixed(1) : 0;
+                                    return `€${val.toFixed(2)} (${pct}%)`;
+                                } } }
+                            },
+                            scales: isPie ? {} : { y: { beginAtZero: true, ticks: { callback: v => '€' + v.toFixed(0) } } }
+                        }
+                    });
+                }
+            };
             const currentMonthExpense = getTotalByMonth(selectedMonth, true);
             const currentMonthIncome = getTotalByMonth(selectedMonth, false);
             const currentMonthBalance = currentMonthIncome - currentMonthExpense;
@@ -2057,6 +2140,68 @@
             const avgPerCategory = Object.keys(expensesByCategory).length > 0 ? (currentMonthExpense / Object.keys(expensesByCategory).length).toFixed(2) : 0;
             const weeklyData = getWeeklyBreakdown(selectedMonth);
             const weeklyAverage = weeklyData.length > 0 ? (currentMonthExpense / weeklyData.length).toFixed(2) : 0;
+
+            // ===== REPORT BUILDER compute =====
+            // Returns { labels:[], values:[], total } based on rb* controls. Expenses only.
+            const buildReport = () => {
+                let data = expenses.slice();
+                // date range filter
+                if (rbFrom) data = data.filter(e => e.date >= rbFrom);
+                if (rbTo) data = data.filter(e => e.date <= rbTo);
+                // person filter
+                if (rbPerson !== 'all') data = data.filter(e => e.person === rbPerson);
+                // category filter (rbCats empty = all)
+                if (rbCats.length > 0) data = data.filter(e => rbCats.includes(e.category));
+
+                const grandTotal = data.reduce((s, e) => s + e.amount, 0);
+                const buckets = {};
+
+                if (rbGroupBy === 'month') {
+                    data.forEach(e => { const k = e.date.substring(0, 7); buckets[k] = (buckets[k] || 0) + e.amount; });
+                    const labels = Object.keys(buckets).sort();
+                    return {
+                        labels: labels.map(l => new Date(l + '-01').toLocaleDateString('el-GR', { month: 'short', year: '2-digit' })),
+                        rawLabels: labels,
+                        values: labels.map(l => buckets[l]),
+                        total: grandTotal
+                    };
+                }
+
+                if (rbGroupBy === 'person') {
+                    data.forEach(e => { buckets[e.person] = (buckets[e.person] || 0) + e.amount; });
+                    const keys = Object.keys(buckets).sort((a, b) => buckets[b] - buckets[a]);
+                    return {
+                        labels: keys.map(k => PEOPLE.find(p => p.id === k)?.name || k),
+                        rawLabels: keys,
+                        values: keys.map(k => buckets[k]),
+                        total: grandTotal
+                    };
+                }
+
+                // group by category — but analysis GROUPS override: if groups exist and are selected via rbCats,
+                // treat each group as one bucket summing its member categories.
+                if (analysisGroups.length > 0) {
+                    // Build category -> amount first
+                    const catTotals = {};
+                    data.forEach(e => { catTotals[e.category] = (catTotals[e.category] || 0) + e.amount; });
+                    const usedCats = new Set();
+                    analysisGroups.forEach(g => {
+                        const sum = g.cats.reduce((s, c) => s + (catTotals[c] || 0), 0);
+                        if (sum > 0) { buckets['📦 ' + g.name] = sum; g.cats.forEach(c => usedCats.add(c)); }
+                    });
+                    // add remaining ungrouped categories individually
+                    Object.entries(catTotals).forEach(([c, v]) => { if (!usedCats.has(c)) buckets[c] = v; });
+                } else {
+                    data.forEach(e => { buckets[e.category] = (buckets[e.category] || 0) + e.amount; });
+                }
+                const keys = Object.keys(buckets).sort((a, b) => buckets[b] - buckets[a]);
+                return {
+                    labels: keys,
+                    rawLabels: keys,
+                    values: keys.map(k => buckets[k]),
+                    total: grandTotal
+                };
+            };
 
             const exportToExcel = () => {
                 try {
@@ -2268,17 +2413,33 @@
 
             const parseImportDate = (val) => {
                 if (!val) return null;
-                if (val instanceof Date && !isNaN(val)) return val.toISOString().split('T')[0];
+                // Real Date object (Excel date cell): use local Y/M/D, no timezone shift
+                if (val instanceof Date && !isNaN(val)) {
+                    const y = val.getFullYear();
+                    const mo = String(val.getMonth() + 1).padStart(2, '0');
+                    const d = String(val.getDate()).padStart(2, '0');
+                    return `${y}-${mo}-${d}`;
+                }
                 const s = val.toString().trim();
-                if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0, 10);
-                const m = s.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})$/);
-                if (m) {
-                    let [, d, mo, y] = m;
-                    if (y.length === 2) y = '20' + y;
+                // ISO already
+                if (/^\d{4}-\d{1,2}-\d{1,2}/.test(s)) {
+                    const [y, mo, d] = s.substring(0, 10).split('-');
                     return `${y}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`;
                 }
-                const parsed = new Date(s);
-                return isNaN(parsed) ? null : parsed.toISOString().split('T')[0];
+                // D/M/Y or D-M-Y or D.M.Y  (ALWAYS day first, per user's data)
+                const m = s.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})$/);
+                if (m) {
+                    let [, a, b, y] = m;
+                    let day = parseInt(a), month = parseInt(b);
+                    // If the first number can't be a day (>31) but could be year, bail to Date()
+                    // If second number >12, the format must be M/D — swap to keep it valid
+                    if (month > 12 && day <= 12) { const t = day; day = month; month = t; }
+                    if (y.length === 2) y = '20' + y;
+                    if (day >= 1 && day <= 31 && month >= 1 && month <= 12) {
+                        return `${y}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+                    }
+                }
+                return null;
             };
 
             const parseImportAmount = (val) => {
@@ -2769,6 +2930,7 @@
 
                                     <div className="analytics-tabs">
                                         <button className={`analytics-tab-btn ${analyticsTab === 'trends' ? 'active' : ''}`} onClick={() => setAnalyticsTab('trends')}>📈 Τάσεις</button>
+                                        <button className={`analytics-tab-btn ${analyticsTab === 'builder' ? 'active' : ''}`} onClick={() => setAnalyticsTab('builder')}>🧩 Report Builder</button>
                                         <button className={`analytics-tab-btn ${analyticsTab === 'categories' ? 'active' : ''}`} onClick={() => setAnalyticsTab('categories')}>🎯 Κατηγορίες</button>
                                         <button className={`analytics-tab-btn ${analyticsTab === 'comparison' ? 'active' : ''}`} onClick={() => setAnalyticsTab('comparison')}>⚖️ Σύγκριση</button>
                                         <button className={`analytics-tab-btn ${analyticsTab === 'ranking' ? 'active' : ''}`} onClick={() => setAnalyticsTab('ranking')}>🏆 Κατάταξη</button>
@@ -2800,6 +2962,110 @@
                                             </div>
                                         </>
                                     )}
+
+                                    {analyticsTab === 'builder' && (() => {
+                                        const rep = buildReport();
+                                        return (
+                                        <div style={{ marginTop: '20px' }}>
+                                            {/* GROUPS MANAGER */}
+                                            <div style={{ background: '#f8f9ff', borderRadius: '12px', padding: '16px', marginBottom: '20px' }}>
+                                                <h3 style={{ marginTop: 0 }}>📦 Ομάδες Ανάλυσης <span style={{ fontSize: '12px', color: '#999', fontWeight: 400 }}>(μόνο για ανάλυση — δεν αλλάζουν τα δεδομένα)</span></h3>
+
+                                                {analysisGroups.length > 0 && (
+                                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '14px' }}>
+                                                        {analysisGroups.map(g => (
+                                                            <div key={g.id} style={{ background: 'white', border: '2px solid #667eea', borderRadius: '10px', padding: '8px 12px', fontSize: '13px' }}>
+                                                                <strong>📦 {g.name}</strong> <span style={{ color: '#999' }}>({g.cats.length})</span>
+                                                                <button onClick={() => editGroup(g)} style={{ width: 'auto', padding: '2px 8px', fontSize: '12px', marginBottom: 0, marginLeft: '6px', background: '#667eea' }}>✏️</button>
+                                                                <button onClick={() => deleteGroup(g.id)} style={{ width: 'auto', padding: '2px 8px', fontSize: '12px', marginBottom: 0, marginLeft: '4px', background: '#f44336' }}>🗑️</button>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+
+                                                <input type="text" placeholder="Όνομα ομάδας (π.χ. Σπίτι, Αυτοκίνητο)..." value={newGroupName} onChange={e => setNewGroupName(e.target.value)} style={{ marginBottom: '10px' }} />
+                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '12px' }}>
+                                                    {EXPENSE_CATEGORIES.map(cat => (
+                                                        <button key={cat} onClick={() => toggleGroupCat(cat)} style={{ width: 'auto', padding: '6px 10px', fontSize: '12px', marginBottom: 0, background: newGroupCats.includes(cat) ? '#667eea' : '#e0e0e0', color: newGroupCats.includes(cat) ? 'white' : '#555' }}>
+                                                            {newGroupCats.includes(cat) ? '✓ ' : ''}{cat}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                                <div style={{ display: 'flex', gap: '8px' }}>
+                                                    <button onClick={saveGroup} style={{ width: 'auto', padding: '8px 20px', marginBottom: 0 }}>{editingGroupId ? '💾 Ενημέρωση' : '➕ Δημιουργία ομάδας'}</button>
+                                                    {editingGroupId && <button onClick={() => { setEditingGroupId(null); setNewGroupName(''); setNewGroupCats([]); }} style={{ width: 'auto', padding: '8px 16px', marginBottom: 0, background: '#999' }}>Ακύρωση</button>}
+                                                </div>
+                                            </div>
+
+                                            {/* CONTROLS */}
+                                            <h3>🎛️ Ρυθμίσεις Ανάλυσης</h3>
+                                            <div style={{ marginBottom: '10px' }}>
+                                                <label style={{ fontSize: '13px', color: '#666', display: 'block', marginBottom: '6px' }}>Ανάλυση κατά:</label>
+                                                <div className="variant-switch" style={{ margin: 0 }}>
+                                                    <button className={rbGroupBy === 'category' ? 'active' : ''} onClick={() => setRbGroupBy('category')}>Κατηγορία/Ομάδα</button>
+                                                    <button className={rbGroupBy === 'month' ? 'active' : ''} onClick={() => setRbGroupBy('month')}>Μήνα</button>
+                                                    <button className={rbGroupBy === 'person' ? 'active' : ''} onClick={() => setRbGroupBy('person')}>Άτομο</button>
+                                                </div>
+                                            </div>
+
+                                            <div style={{ marginBottom: '10px' }}>
+                                                <label style={{ fontSize: '13px', color: '#666', display: 'block', marginBottom: '6px' }}>Τύπος γραφήματος:</label>
+                                                <div className="variant-switch" style={{ margin: 0 }}>
+                                                    <button className={rbChart === 'bar' ? 'active' : ''} onClick={() => setRbChart('bar')}>📊 Μπάρες</button>
+                                                    <button className={rbChart === 'line' ? 'active' : ''} onClick={() => setRbChart('line')}>📈 Γραμμή</button>
+                                                    <button className={rbChart === 'pie' ? 'active' : ''} onClick={() => setRbChart('pie')}>🥧 Πίτα</button>
+                                                </div>
+                                            </div>
+
+                                            <div style={{ display: 'flex', gap: '10px', marginBottom: '10px', flexWrap: 'wrap' }}>
+                                                <div style={{ flex: 1, minWidth: '130px' }}>
+                                                    <label style={{ fontSize: '13px', color: '#666', display: 'block', marginBottom: '6px' }}>Από:</label>
+                                                    <input type="date" value={rbFrom} onChange={e => setRbFrom(e.target.value)} style={{ marginBottom: 0 }} />
+                                                </div>
+                                                <div style={{ flex: 1, minWidth: '130px' }}>
+                                                    <label style={{ fontSize: '13px', color: '#666', display: 'block', marginBottom: '6px' }}>Έως:</label>
+                                                    <input type="date" value={rbTo} onChange={e => setRbTo(e.target.value)} style={{ marginBottom: 0 }} />
+                                                </div>
+                                                <div style={{ flex: 1, minWidth: '130px' }}>
+                                                    <label style={{ fontSize: '13px', color: '#666', display: 'block', marginBottom: '6px' }}>Άτομο:</label>
+                                                    <select value={rbPerson} onChange={e => setRbPerson(e.target.value)} style={{ marginBottom: 0 }}>
+                                                        <option value="all">Όλοι</option>
+                                                        {PEOPLE.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                                    </select>
+                                                </div>
+                                            </div>
+
+                                            {(rbFrom || rbTo || rbPerson !== 'all' || rbCats.length > 0) && (
+                                                <button onClick={() => { setRbFrom(''); setRbTo(''); setRbPerson('all'); setRbCats([]); }} style={{ width: 'auto', padding: '6px 14px', fontSize: '12px', background: '#999', marginBottom: '14px' }}>✕ Καθαρισμός φίλτρων</button>
+                                            )}
+
+                                            {/* CHART */}
+                                            <div className="chart-card" style={{ padding: '20px', marginTop: '10px' }}>
+                                                <div className="mini-chart-container" style={{ minHeight: '320px' }}>
+                                                    <canvas ref={el => chartRefs.current.reportBuilder = el}></canvas>
+                                                </div>
+                                            </div>
+
+                                            {/* TABLE with % of total */}
+                                            <div style={{ marginTop: '16px' }}>
+                                                <div style={{ fontSize: '14px', color: '#666', marginBottom: '10px' }}>Σύνολο: <strong className="amount-negative">€{rep.total.toFixed(2)}</strong></div>
+                                                <table>
+                                                    <thead><tr><th>Στοιχείο</th><th>Ποσό</th><th>% συνόλου</th></tr></thead>
+                                                    <tbody>
+                                                        {rep.labels.map((lbl, i) => (
+                                                            <tr key={i}>
+                                                                <td>{lbl}</td>
+                                                                <td><span className="amount-negative">€{rep.values[i].toFixed(2)}</span></td>
+                                                                <td><strong>{rep.total > 0 ? ((rep.values[i] / rep.total) * 100).toFixed(1) : 0}%</strong></td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                                {rep.labels.length === 0 && <p style={{ textAlign: 'center', color: '#999', padding: '20px' }}>Καμία εγγραφή για τα επιλεγμένα φίλτρα</p>}
+                                            </div>
+                                        </div>
+                                        );
+                                    })()}
 
                                     {analyticsTab === 'categories' && (
                                         <>
@@ -2958,9 +3224,37 @@
                             </div>
                         )}
 
-                        {activeTab === 'list' && (
+                        {activeTab === 'list' && (() => {
+                            // Build the list depending on scope
+                            let listData = listScope === 'all'
+                                ? [...expenses, ...incomes]
+                                : [...currentMonthExpenses, ...currentMonthIncomes];
+                            if (listSearch.trim()) {
+                                const q = listSearch.trim().toLowerCase();
+                                listData = listData.filter(t =>
+                                    (t.category || '').toLowerCase().includes(q) ||
+                                    (t.note || '').toLowerCase().includes(q)
+                                );
+                            }
+                            listData = listData.sort((a, b) => new Date(b.date) - new Date(a.date));
+                            const listTotal = listData.reduce((s, t) => t.type === 'expense' ? s - t.amount : s + t.amount, 0);
+
+                            return (
                             <div className="card">
-                                <h2>📝 Λίστα Συναλλαγών - {new Date(selectedMonth + '-01').toLocaleDateString('el-GR', { month: 'long', year: 'numeric' })}</h2>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '14px' }}>
+                                    <h2 style={{ margin: 0 }}>📝 Λίστα {listScope === 'all' ? '(Όλα)' : '- ' + new Date(selectedMonth + '-01').toLocaleDateString('el-GR', { month: 'long', year: 'numeric' })}</h2>
+                                    <div className="variant-switch" style={{ margin: 0, width: 'auto' }}>
+                                        <button className={listScope === 'month' ? 'active' : ''} onClick={() => setListScope('month')} style={{ padding: '8px 16px' }}>Μήνας</button>
+                                        <button className={listScope === 'all' ? 'active' : ''} onClick={() => setListScope('all')} style={{ padding: '8px 16px' }}>Όλα</button>
+                                    </div>
+                                </div>
+
+                                <input type="text" placeholder="🔍 Αναζήτηση σε κατηγορία ή σημείωση..." value={listSearch} onChange={e => setListSearch(e.target.value)} style={{ marginBottom: '14px' }} />
+
+                                <div style={{ display: 'flex', gap: '16px', marginBottom: '14px', fontSize: '13px', color: '#666', flexWrap: 'wrap' }}>
+                                    <span><strong>{listData.length}</strong> εγγραφές</span>
+                                    <span>Υπόλοιπο: <strong className={listTotal >= 0 ? 'amount-positive' : 'amount-negative'}>€{listTotal.toFixed(2)}</strong></span>
+                                </div>
 
                                 <table>
                                     <thead>
@@ -2975,9 +3269,9 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {[...currentMonthExpenses, ...currentMonthIncomes].sort((a, b) => new Date(b.date) - new Date(a.date)).map(trans => (
+                                        {listData.map(trans => (
                                             <tr key={trans.id}>
-                                                <td>{new Date(trans.date).toLocaleDateString('el-GR')}</td>
+                                                <td>{new Date(trans.date).toLocaleDateString('el-GR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</td>
                                                 <td>{trans.type === 'expense' ? '❌ Έξοδο' : '💚 Εισόδημα'}</td>
                                                 <td>{trans.category}</td>
                                                 <td><span className={trans.type === 'expense' ? 'amount-negative' : 'amount-positive'}>€{trans.amount.toFixed(2)}</span></td>
@@ -2995,8 +3289,10 @@
                                         ))}
                                     </tbody>
                                 </table>
+                                {listData.length === 0 && <p style={{ textAlign: 'center', color: '#999', padding: '20px' }}>Καμία εγγραφή</p>}
                             </div>
-                        )}
+                            );
+                        })()}
                     </div>
 
                     {/* ===== FLOATING QUICK-ADD BUTTON ===== */}
