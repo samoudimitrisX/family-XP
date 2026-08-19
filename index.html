@@ -1129,6 +1129,7 @@
             const [undoDelete, setUndoDelete] = useState(null); // {item, type} for undo
             const [listScope, setListScope] = useState('month'); // 'month' | 'all'
             const [listSearch, setListSearch] = useState('');
+            const [monthlyView, setMonthlyView] = useState('monthly'); // 'monthly' | 'annual'
             const excelInputRef = useRef(null);
             const receiptInputRef = useRef(null);
             const [tags, setTags] = useState([]);
@@ -1847,6 +1848,20 @@
                     months.push(date.toISOString().split('T')[0].substring(0, 7));
                 }
                 return months;
+            };
+
+            // All months that actually have data (newest first) — no artificial limit
+            const getAllDataMonths = () => {
+                const set = new Set();
+                [...expenses, ...incomes].forEach(t => { if (t.date) set.add(t.date.substring(0, 7)); });
+                return Array.from(set).sort().reverse();
+            };
+
+            // All years that actually have data (newest first)
+            const getAllDataYears = () => {
+                const set = new Set();
+                [...expenses, ...incomes].forEach(t => { if (t.date) set.add(t.date.substring(0, 4)); });
+                return Array.from(set).sort().reverse();
             };
 
             const getWeeklyBreakdown = (month) => {
@@ -3187,40 +3202,81 @@
 
                         {activeTab === 'monthly' && (
                             <div className="card">
-                                <h2>📆 Μηνιαία Αναφορά</h2>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '16px' }}>
+                                    <h2 style={{ margin: 0 }}>{monthlyView === 'monthly' ? '📆 Μηνιαία Αναφορά' : '🗓️ Ετήσια Αναφορά'}</h2>
+                                    <div className="variant-switch" style={{ margin: 0, width: 'auto' }}>
+                                        <button className={monthlyView === 'monthly' ? 'active' : ''} onClick={() => setMonthlyView('monthly')} style={{ padding: '8px 16px' }}>Μηνιαία</button>
+                                        <button className={monthlyView === 'annual' ? 'active' : ''} onClick={() => setMonthlyView('annual')} style={{ padding: '8px 16px' }}>Ετήσια</button>
+                                    </div>
+                                </div>
 
-                                <table>
-                                    <thead>
-                                        <tr>
-                                            <th>Μήνας</th>
-                                            <th>Συναλλαγές</th>
-                                            <th>Έξοδα (€)</th>
-                                            <th>Εισόδημα (€)</th>
-                                            <th>Υπόλοιπο (€)</th>
-                                            <th>Μέσο/Ημέρα (€)</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {getLast12Months().map(month => {
-                                            const monthExpense = getTotalByMonth(month, true);
-                                            const monthIncome = getTotalByMonth(month, false);
-                                            const monthTransactions = expenses.filter(e => e.date.startsWith(month)).length + incomes.filter(i => i.date.startsWith(month)).length;
-                                            const daysInMonth = new Date(month.split('-')[0], parseInt(month.split('-')[1]), 0).getDate();
-                                            const avgPerDay = monthExpense > 0 ? (monthExpense / daysInMonth).toFixed(2) : '0.00';
-
-                                            return (
-                                                <tr key={month}>
-                                                    <td>{new Date(month + '-01').toLocaleDateString('el-GR', { month: 'long', year: 'numeric' })}</td>
-                                                    <td>{monthTransactions}</td>
-                                                    <td><span className="amount-negative">€{monthExpense.toFixed(2)}</span></td>
-                                                    <td><span className="amount-positive">€{monthIncome.toFixed(2)}</span></td>
-                                                    <td style={{ color: monthIncome - monthExpense >= 0 ? '#4caf50' : '#f44336', fontWeight: 700 }}>€{(monthIncome - monthExpense).toFixed(2)}</td>
-                                                    <td>€{avgPerDay}</td>
-                                                </tr>
-                                            );
-                                        })}
-                                    </tbody>
-                                </table>
+                                {monthlyView === 'monthly' ? (
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th>Μήνας</th>
+                                                <th>Συναλλαγές</th>
+                                                <th>Έξοδα (€)</th>
+                                                <th>Εισόδημα (€)</th>
+                                                <th>Υπόλοιπο (€)</th>
+                                                <th>Μέσο/Ημέρα (€)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {getAllDataMonths().map(month => {
+                                                const monthExpense = getTotalByMonth(month, true);
+                                                const monthIncome = getTotalByMonth(month, false);
+                                                const monthTransactions = expenses.filter(e => e.date.startsWith(month)).length + incomes.filter(i => i.date.startsWith(month)).length;
+                                                const daysInMonth = new Date(month.split('-')[0], parseInt(month.split('-')[1]), 0).getDate();
+                                                const avgPerDay = monthExpense > 0 ? (monthExpense / daysInMonth).toFixed(2) : '0.00';
+                                                return (
+                                                    <tr key={month}>
+                                                        <td>{new Date(month + '-01').toLocaleDateString('el-GR', { month: 'long', year: 'numeric' })}</td>
+                                                        <td>{monthTransactions}</td>
+                                                        <td><span className="amount-negative">€{monthExpense.toFixed(2)}</span></td>
+                                                        <td><span className="amount-positive">€{monthIncome.toFixed(2)}</span></td>
+                                                        <td style={{ color: monthIncome - monthExpense >= 0 ? '#4caf50' : '#f44336', fontWeight: 700 }}>€{(monthIncome - monthExpense).toFixed(2)}</td>
+                                                        <td>€{avgPerDay}</td>
+                                                    </tr>
+                                                );
+                                            })}
+                                            {getAllDataMonths().length === 0 && <tr><td colSpan="6" style={{ textAlign: 'center', color: '#999' }}>Καμία εγγραφή</td></tr>}
+                                        </tbody>
+                                    </table>
+                                ) : (
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th>Έτος</th>
+                                                <th>Συναλλαγές</th>
+                                                <th>Έξοδα (€)</th>
+                                                <th>Εισόδημα (€)</th>
+                                                <th>Υπόλοιπο (€)</th>
+                                                <th>Μέσο/Μήνα (€)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {getAllDataYears().map(year => {
+                                                const yearExpense = getTotalByYear(year, true);
+                                                const yearIncome = getTotalByYear(year, false);
+                                                const yearTransactions = expenses.filter(e => e.date.startsWith(year)).length + incomes.filter(i => i.date.startsWith(year)).length;
+                                                const monthsWithData = new Set([...expenses, ...incomes].filter(t => t.date.startsWith(year)).map(t => t.date.substring(0, 7))).size || 1;
+                                                const avgPerMonth = yearExpense > 0 ? (yearExpense / monthsWithData).toFixed(2) : '0.00';
+                                                return (
+                                                    <tr key={year}>
+                                                        <td style={{ fontWeight: 700 }}>{year}</td>
+                                                        <td>{yearTransactions}</td>
+                                                        <td><span className="amount-negative">€{yearExpense.toFixed(2)}</span></td>
+                                                        <td><span className="amount-positive">€{yearIncome.toFixed(2)}</span></td>
+                                                        <td style={{ color: yearIncome - yearExpense >= 0 ? '#4caf50' : '#f44336', fontWeight: 700 }}>€{(yearIncome - yearExpense).toFixed(2)}</td>
+                                                        <td>€{avgPerMonth}</td>
+                                                    </tr>
+                                                );
+                                            })}
+                                            {getAllDataYears().length === 0 && <tr><td colSpan="6" style={{ textAlign: 'center', color: '#999' }}>Καμία εγγραφή</td></tr>}
+                                        </tbody>
+                                    </table>
+                                )}
                             </div>
                         )}
 
