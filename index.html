@@ -1130,6 +1130,26 @@
             const [listScope, setListScope] = useState('month'); // 'month' | 'all'
             const [listSearch, setListSearch] = useState('');
             const [monthlyView, setMonthlyView] = useState('monthly'); // 'monthly' | 'annual'
+            const touchStartX = useRef(null);
+
+            const shiftMonth = (delta) => {
+                const d = new Date(selectedMonth + '-01');
+                d.setMonth(d.getMonth() + delta);
+                setSelectedMonth(d.toISOString().split('T')[0].substring(0, 7));
+            };
+
+            const monthTitle = (m) => new Date(m + '-01').toLocaleDateString('el-GR', { month: 'long', year: 'numeric' });
+
+            // Swipe handlers: left = next month, right = previous month
+            const swipeHandlers = {
+                onTouchStart: (e) => { touchStartX.current = e.touches[0].clientX; },
+                onTouchEnd: (e) => {
+                    if (touchStartX.current === null) return;
+                    const dx = e.changedTouches[0].clientX - touchStartX.current;
+                    if (Math.abs(dx) > 50) shiftMonth(dx < 0 ? 1 : -1);
+                    touchStartX.current = null;
+                }
+            };
             const excelInputRef = useRef(null);
             const receiptInputRef = useRef(null);
             const [tags, setTags] = useState([]);
@@ -2624,16 +2644,14 @@
                             </div>
                         )}
 
-                        <div className="top-stats">
-                            <div className="stat-card income">
-                                <div className="stat-label">💚 Εισόδημα Μήνα</div>
-                                <div className="stat-value">€{currentMonthIncome.toFixed(2)}</div>
-                                <div className="stat-meta">
-                                    <span>{currentMonthIncomes.length} κατάθεση</span>
-                                    <span className="stat-badge positive">↑ 0%</span>
-                                </div>
-                            </div>
+                        {/* Month navigation header with arrows + swipe */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px', marginBottom: '16px' }}>
+                            <button onClick={() => shiftMonth(-1)} style={{ width: 'auto', padding: '8px 16px', fontSize: '18px', marginBottom: 0, borderRadius: '10px' }} title="Προηγούμενος μήνας">‹</button>
+                            <h2 style={{ margin: 0, minWidth: '200px', textAlign: 'center', fontSize: '20px', textTransform: 'capitalize' }}>{monthTitle(selectedMonth)}</h2>
+                            <button onClick={() => shiftMonth(1)} style={{ width: 'auto', padding: '8px 16px', fontSize: '18px', marginBottom: 0, borderRadius: '10px' }} title="Επόμενος μήνας">›</button>
+                        </div>
 
+                        <div className="top-stats" {...swipeHandlers}>
                             <div className="stat-card expense">
                                 <div className="stat-label">❌ Έξοδα Μήνα</div>
                                 <div className="stat-value">€{currentMonthExpense.toFixed(2)}</div>
@@ -2642,6 +2660,14 @@
                                     <span className={`stat-badge ${currentMonthExpense > prevMonthExpense ? 'negative' : 'positive'}`}>
                                         {currentMonthExpense > prevMonthExpense ? '↑' : '↓'} {Math.abs(((currentMonthExpense - prevMonthExpense) / (prevMonthExpense || 1) * 100).toFixed(1))}%
                                     </span>
+                                </div>
+                            </div>
+
+                            <div className="stat-card income">
+                                <div className="stat-label">💚 Εισόδημα Μήνα</div>
+                                <div className="stat-value">€{currentMonthIncome.toFixed(2)}</div>
+                                <div className="stat-meta">
+                                    <span>{currentMonthIncomes.length} κατάθεση</span>
                                 </div>
                             </div>
 
@@ -2668,7 +2694,7 @@
                         </div>
 
                         <div className="month-selector">
-                            <label style={{ fontWeight: 600, color: '#667eea' }}>📅 Επιλέξτε Μήνα:</label>
+                            <label style={{ fontWeight: 600, color: '#667eea' }}>📅 Ή επίλεξε:</label>
                             <input type="month" value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)} />
                         </div>
 
@@ -2691,18 +2717,51 @@
                                         </div>
                                     </div>
 
-                                    <div className="chart-card">
-                                        <h2>🎯 Κατηγορίες</h2>
+                                    <div className="chart-card" {...swipeHandlers}>
+                                        <h2 style={{ textTransform: 'capitalize' }}>🎯 Κατηγορίες <span style={{ fontSize: '13px', color: '#999', fontWeight: 400 }}>— {monthTitle(selectedMonth)}</span></h2>
                                         <div className="chart-container">
                                             <canvas ref={el => chartRefs.current.category = el}></canvas>
                                         </div>
+                                        {Object.keys(expensesByCategory).length > 0 && (
+                                            <div style={{ marginTop: '12px', maxHeight: '160px', overflowY: 'auto' }}>
+                                                {Object.entries(expensesByCategory).sort((a, b) => b[1] - a[1]).map(([cat, amt], i) => {
+                                                    const pct = currentMonthExpense > 0 ? (amt / currentMonthExpense * 100).toFixed(1) : 0;
+                                                    return (
+                                                        <div key={cat} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: '1px solid #f0f0f0', fontSize: '13px' }}>
+                                                            <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: COLORS[i % COLORS.length], display: 'inline-block' }}></span>
+                                                                {cat}
+                                                            </span>
+                                                            <span><strong>€{amt.toFixed(2)}</strong> <span style={{ color: '#999' }}>({pct}%)</span></span>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
                                     </div>
 
-                                    <div className="chart-card">
-                                        <h2>👥 Ανά Άτομο</h2>
+                                    <div className="chart-card" {...swipeHandlers}>
+                                        <h2 style={{ textTransform: 'capitalize' }}>👥 Ανά Άτομο <span style={{ fontSize: '13px', color: '#999', fontWeight: 400 }}>— {monthTitle(selectedMonth)}</span></h2>
                                         <div className="chart-container">
                                             <canvas ref={el => chartRefs.current.person = el}></canvas>
                                         </div>
+                                        {Object.keys(expensesByPerson).length > 0 && (
+                                            <div style={{ marginTop: '12px', maxHeight: '160px', overflowY: 'auto' }}>
+                                                {Object.entries(expensesByPerson).sort((a, b) => b[1] - a[1]).map(([pid, amt], i) => {
+                                                    const pct = currentMonthExpense > 0 ? (amt / currentMonthExpense * 100).toFixed(1) : 0;
+                                                    const pname = PEOPLE.find(p => p.id === pid)?.name || pid;
+                                                    return (
+                                                        <div key={pid} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: '1px solid #f0f0f0', fontSize: '13px' }}>
+                                                            <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: COLORS[i % COLORS.length], display: 'inline-block' }}></span>
+                                                                {pname}
+                                                            </span>
+                                                            <span><strong>€{amt.toFixed(2)}</strong> <span style={{ color: '#999' }}>({pct}%)</span></span>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 
